@@ -23,9 +23,8 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
     python run_flows_video.py --model models/raft-things.pth --data_path /home/zl548/nerf_data/kid-running/dense/ --epi_threhold 1.0
 ```
 
+## Rendering
+
 ## Training
-
-## Inference
-
 
 ## Evaluation
