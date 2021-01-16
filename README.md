@@ -46,6 +46,6 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```bash
     python run_nerf.py --config configs/config_kid-running.txt
 ```
-The training takes ~2 days using 2 Nvidia V100 GPUs.
+The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
 ## Evaluation
