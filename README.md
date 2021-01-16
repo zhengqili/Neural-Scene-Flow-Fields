@@ -39,5 +39,10 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```
 
 ## Training
+(1) In configs/config_kid-running.txt, changing expname to any name that you like (different from the original one), and running the following command:
+```bash
+    python run_nerf.py --config configs/config_kid-running.txt
+```
+The training usually take ~2 days using 2 Nvidia V100 GPUs.
 
 ## Evaluation
