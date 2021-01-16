@@ -35,7 +35,7 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```
 (3) Space-Time Interpolation
 ```bash
-   run_nerf.py --config configs/config_kid-running.txt --render_slowmo_bt  --target_idx 10
+   python run_nerf.py --config configs/config_kid-running.txt --render_slowmo_bt  --target_idx 10
 ```
 
 ## Training
