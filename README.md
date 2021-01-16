@@ -6,9 +6,9 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 The code is tested with Pytorch >= 1.2, the depdenency library includes PIL, opencv, skimage, json, scipy.
 
 ## Video preprocessing 
-(1) Download Midas Model from ..., and put it on the directory "nsff_scripts"
-
-(2) Run the following commands to generate required inputs for the models
+(1) Download example input videos with SfM poses estimated from COLMAP: https://colmap.github.io/
+(2) Download Midas Model from ..., and put it on the directory "nsff_scripts"
+(3) Run the following commands to generate required inputs for the models
 ```bash
     # Usage
     # create camera intrinsics/extrinsic format for NeRF
