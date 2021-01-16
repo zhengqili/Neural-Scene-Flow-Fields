@@ -7,6 +7,7 @@ The code is tested with Pytorch >= 1.2, the depdenency library includes PIL, ope
 
 ## Video preprocessing 
 (1) Download Midas Model from ..., and put it on the directory "nsff_scripts"
+
 (2) Run the following commands to generate required inputs for the models
 ```bash
     # Usage
