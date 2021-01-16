@@ -3,7 +3,7 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 
 
 ## Dependency
-The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, opencv, skimage, scipy.
+The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, opencv, skimage, scipy, cupy, imageio.
 
 ## Video preprocessing 
 (1) Download example input videos with SfM poses estimated from COLMAP: https://colmap.github.io/
