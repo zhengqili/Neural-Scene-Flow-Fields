@@ -3,7 +3,7 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 
 
 ## Dependency
-The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, opencv, skimage, scipy.
+The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, opencv, skimage, scipy, cupy, imageio.
 
 ## Video preprocessing 
 (1) Download example input videos with SfM poses estimated from COLMAP: https://colmap.github.io/
@@ -24,7 +24,10 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```
 
 ## Rendering from pretrained models
-(1) Set datadir in config/config_kid-running.txt to the root directory of input video
+(1) The pretraind model is in "nsff_exp/logs/kid-running_ndc_5f_sv_of_sm_unify3_F00-30/360000.tar". Set datadir in config/config_kid-running.txt to the root directory of input video. Go to directory "nsff_exp"
+```bash
+   cd nsff_exp
+```
 (2) Fixed Time, Viewpoint Interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_bt --target_idx 10
@@ -43,6 +46,6 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```bash
     python run_nerf.py --config configs/config_kid-running.txt
 ```
-The training usually take ~2 days using 2 Nvidia V100 GPUs.
+The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
 ## Evaluation
