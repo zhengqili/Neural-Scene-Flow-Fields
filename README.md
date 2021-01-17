@@ -49,8 +49,10 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
 ## Evaluation on Dynamic Scene Dataset
-(1) Download Dynamic Scene dataset from .....
-(2) Download pretrained models from .... and put them in the directory "nsff_exp/logs/" 
+(1) Download Dynamic Scene dataset "dynamic_scene_data_full.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing
+
+(2) Download pretrained models "dynamic_scene_pretrained_models.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, unzip and put them in the folder "nsff_exp/logs/" 
+
 (3) Run the following command for each scene:
 ```bash
    # Usage: configs/config_xxx.txt indicates each scene name such as config_balloon1-2.txt in nsff/configs
