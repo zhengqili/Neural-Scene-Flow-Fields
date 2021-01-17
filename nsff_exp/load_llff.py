@@ -98,8 +98,8 @@ def _load_data(basedir, start_frame, end_frame,
         factor = factor
     elif height is not None:
         factor = sh[0] / float(height)
-        # width = int(round(sh[1] / factor))
-        width = int((sh[1] / factor))
+        width = int(round(sh[1] / factor))
+        # width = int((sh[1] / factor))
 
         _minify(basedir, resolutions=[[height, width]])
         sfx = '_{}x{}'.format(width, height)
