@@ -6,11 +6,11 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, opencv, skimage, scipy, cupy, imageio.
 
 ## Video preprocessing 
-(1) Download example input videos with SfM poses estimated from COLMAP: https://colmap.github.io/
+(1) Download nerf_data.zip from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, an example input videos with SfM poses estimated from COLMAP: https://colmap.github.io/
 
-(2) Download Midas Model from ..., and put it on the directory "nsff_scripts"
+(2) Download single view depth prediction model "model.pt" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, and put it on the folder "nsff_scripts".
 
-(3) Run the following commands to generate required inputs for the models
+(3) Run the following commands to generate required inputs:
 ```bash
     # Usage
     cd nsff_scripts
@@ -24,19 +24,19 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```
 
 ## Rendering from pretrained models
-(1) The pretraind model is in "nsff_exp/logs/kid-running_ndc_5f_sv_of_sm_unify3_F00-30/360000.tar". Set datadir in config/config_kid-running.txt to the root directory of input video. Go to directory "nsff_exp"
+(1) Download pretraind model "kid-running_ndc_5f_sv_of_sm_unify3_F00-30.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, and unzip and put it in the folder "nsff_exp/logs/kid-running_ndc_5f_sv_of_sm_unify3_F00-30/360000.tar". Set datadir in config/config_kid-running.txt to the root directory of input video. Then go to directory "nsff_exp":
 ```bash
    cd nsff_exp
 ```
-(2) Fixed Time, Viewpoint Interpolation
+(2) Rendering with fixed time, viewpoint interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_bt --target_idx 10
 ```
-(3) Fixed Viewpoint, Time Interpolation
+(3) Rendering with fixed Viewpoint, time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_dynamics_slowmo --target_idx 5
 ```
-(3) Space-Time Interpolation
+(3) Rendering with space-time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_slowmo_bt  --target_idx 10
 ```
@@ -48,4 +48,12 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```
 The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
-## Evaluation
+## Evaluation on Dynamic Scene Dataset
+(1) Download Dynamic Scene dataset from .....
+(2) Download pretrained models from .... and put them in the directory "nsff_exp/logs/" 
+(3) Run the following command for each scene:
+```bash
+   # Usage: configs/config_xxx.txt indicates each scene name such as config_balloon1-2.txt in nsff/configs
+   python evaluation.py --config configs/config_xxx.txt
+```
+
