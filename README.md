@@ -58,4 +58,8 @@ The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
    # Usage: configs/config_xxx.txt indicates each scene name such as config_balloon1-2.txt in nsff/configs
    python evaluation.py --config configs/config_xxx.txt
 ```
+## Acknowledge
+The code is based on several prior work:
+(1) https://github.com/sniklaus/softmax-splatting
+(2) https://github.com/yenchenlin/nerf-pytorch
 
