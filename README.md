@@ -60,6 +60,7 @@ The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 ```
 ## Acknowledge
 The code is based on several prior work:
+
 (1) https://github.com/sniklaus/softmax-splatting
 
 (2) https://github.com/yenchenlin/nerf-pytorch
