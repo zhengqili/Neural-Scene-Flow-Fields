@@ -42,7 +42,7 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```
 
 ## Training
-(1) In configs/config_kid-running.txt, changing expname to any name that you like (different from the original one), and running the following command:
+(1) In configs/config_kid-running.txt, changing expname to any name that you like (different from the original one), and running the following command for training the representation:
 ```bash
     python run_nerf.py --config configs/config_kid-running.txt
 ```
