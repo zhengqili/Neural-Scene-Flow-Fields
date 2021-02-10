@@ -6,7 +6,7 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, opencv, skimage, scipy, cupy, imageio.
 
 ## Video preprocessing 
-(1) Download nerf_data.zip from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, an example input video with SfM camera poses and intrinsics estimated from COLMAP: https://colmap.github.io/.
+(1) Download nerf_data.zip from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, an example input video with SfM camera poses and intrinsics estimated from COLMAP: https://colmap.github.io/ (Note you might use COLMAP to undistort input images to get "dense" folder as shown in the example).
 
 (2) Download single view depth prediction model "model.pt" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, and put it on the folder "nsff_scripts".
 
