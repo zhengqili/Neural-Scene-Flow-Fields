@@ -46,7 +46,7 @@ By running the example command, you should get the following result:
 ```
 
 By running the example command, you should get the following result:
-![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/vi.gif)
+![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/ti.gif)
 
 (3) Rendering with space-time interpolation
 ```bash
@@ -54,7 +54,7 @@ By running the example command, you should get the following result:
 ```
 
 By running the example command, you should get the following result:
-![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/master/demo/vi.gif)
+![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/sti.gif)
 
 ## Training
 (1) In configs/config_kid-running.txt, modifying expname to any name you like (different from the original one), and running the following command for training the model:
