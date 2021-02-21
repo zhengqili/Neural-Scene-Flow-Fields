@@ -3,7 +3,7 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 
 
 ## Dependency
-The code is tested with Python3 and Pytorch >= 1.6, the dependencies includes configargparse, numpy, PIL, matplotlib, opencv, skimage, scipy, cupy, imageio.
+The code is tested with Python3 and Pytorch >= 1.6, the dependencies includes configargparse, numpy, PIL, matplotlib, opencv, scikit-image, scipy, cupy, imageio.
 
 ## Video preprocessing 
 (1) Download nerf_data.zip from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, an example input video with SfM camera poses and intrinsics estimated from COLMAP: https://colmap.github.io/ (Note you need to use COLMAP "colmap image_undistorter" command to undistort input images to get "dense" folder as shown in the example, this dense folder should include "images" and "sparse" folder used for preprocessing).
