@@ -38,7 +38,7 @@ Set datadir in config/config_kid-running.txt to the root directory of input vide
 ```
 
 By running the example command, you should get the following result:
-![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/tree/main/demo/vi.gif)
+![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/masterdemo/vi.gif)
 
 (3) Rendering with fixed viewpoint, time interpolation
 ```bash
