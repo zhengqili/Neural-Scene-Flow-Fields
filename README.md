@@ -55,7 +55,7 @@ The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
 (2) Download pretrained model "dynamic_scene_pretrained_models.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, unzip and put them in the folder "nsff_exp/logs/" 
 
-(3) Run the following command for each scene:
+(3) Run the following command for each scene to get quantitative results reported in the paper:
 ```bash
    # Usage: configs/config_xxx.txt indicates each scene name such as config_balloon1-2.txt in nsff/configs
    python evaluation.py --config configs/config_xxx.txt
