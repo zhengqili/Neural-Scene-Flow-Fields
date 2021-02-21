@@ -1,14 +1,15 @@
-# Neural-Scene-Flow-Fields
+# Neural Scene Flow Fields
 PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Synthesis of Dynamic Scenes"
 
+[[Project Website]](https://www.cs.cornell.edu/~zl548/NSFF/) [[Paper]](https://arxiv.org/abs/2011.13084) [[Video]](https://www.youtube.com/watch?v=qsMIH7gYRCc&feature=emb_title)
 
 ## Dependency
 The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependencies includes configargparse, numpy, PIL, matplotlib, opencv, scikit-image, scipy, cupy, imageio.
 
 ## Video preprocessing 
-(1) Download nerf_data.zip from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, an example input video with SfM camera poses and intrinsics estimated from COLMAP: https://colmap.github.io/ (Note you need to use COLMAP "colmap image_undistorter" command to undistort input images to get "dense" folder as shown in the example, this dense folder should include "images" and "sparse" folder used for preprocessing).
+(1) Download nerf_data.zip from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing), an example input video with SfM camera poses and intrinsics estimated from [COLMAP](https://colmap.github.io/) (Note you need to use COLMAP "colmap image_undistorter" command to undistort input images to get "dense" folder as shown in the example, this dense folder should include "images" and "sparse" folder used for preprocessing).
 
-(2) Download single view depth prediction model "model.pt" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, and put it on the folder "nsff_scripts".
+(2) Download single view depth prediction model "model.pt" from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing), and put it on the folder "nsff_scripts".
 
 (3) Run the following commands to generate required inputs for training/inference:
 ```bash
@@ -25,7 +26,7 @@ The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependenci
 ```
 
 ## Rendering from an example pretrained model
-(1) Download pretraind model "kid-running_ndc_5f_sv_of_sm_unify3_F00-30.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing. Unzipping and putting it in the folder "nsff_exp/logs/kid-running_ndc_5f_sv_of_sm_unify3_F00-30/360000.tar". 
+(1) Download pretraind model "kid-running_ndc_5f_sv_of_sm_unify3_F00-30.zip" from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing). Unzipping and putting it in the folder "nsff_exp/logs/kid-running_ndc_5f_sv_of_sm_unify3_F00-30/360000.tar". 
 
 Set datadir in config/config_kid-running.txt to the root directory of input video. Then go to directory "nsff_exp":
 ```bash
@@ -57,16 +58,16 @@ By running the example command, you should get the following result:
 ![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/sti.gif)
 
 ## Training
-(1) In configs/config_kid-running.txt, modifying expname to any name you like (different from the original one), and running the following command for training the model:
+(1) In configs/config_kid-running.txt, modifying expname to any name you like (different from the original one), and running the following command to train the model:
 ```bash
     python run_nerf.py --config configs/config_kid-running.txt
 ```
 The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
 ## Evaluation on the Dynamic Scene Dataset
-(1) Download Dynamic Scene dataset "dynamic_scene_data_full.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing
+(1) Download Dynamic Scene dataset "dynamic_scene_data_full.zip" from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing)
 
-(2) Download pretrained model "dynamic_scene_pretrained_models.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, unzip and put them in the folder "nsff_exp/logs/" 
+(2) Download pretrained model "dynamic_scene_pretrained_models.zip" from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing), unzip and put them in the folder "nsff_exp/logs/"
 
 (3) Run the following command for each scene to get quantitative results reported in the paper:
 ```bash
