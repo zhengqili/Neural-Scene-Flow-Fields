@@ -31,18 +31,30 @@ Set datadir in config/config_kid-running.txt to the root directory of input vide
 ```bash
    cd nsff_exp
 ```
+
 (2) Rendering with fixed time, viewpoint interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_bt --target_idx 10
 ```
+
+By running the example command, you should get the following result:
+![Alt Text](https://github.com/zhengqili/Crowdsampling-the-Plenoptic-Function/blob/master/demo/ours_34558526690_e5ba5b3b9d.jpg.gif)
+
 (3) Rendering with fixed viewpoint, time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_lockcam_slowmo --target_idx 5
 ```
+
+By running the example command, you should get the following result:
+![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/master/demo/vi.gif)
+
 (3) Rendering with space-time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_slowmo_bt  --target_idx 10
 ```
+
+By running the example command, you should get the following result:
+![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/master/demo/vi.gif)
 
 ## Training
 (1) In configs/config_kid-running.txt, modifying expname to any name you like (different from the original one), and running the following command for training the model:
@@ -61,8 +73,8 @@ The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
    # Usage: configs/config_xxx.txt indicates each scene name such as config_balloon1-2.txt in nsff/configs
    python evaluation.py --config configs/config_xxx.txt
 ```
-## acknowledgment
-The code is based on several prior work:
+## Acknowledgment
+The code is based on implementation of several prior work:
 
 (1) https://github.com/sniklaus/softmax-splatting
 
