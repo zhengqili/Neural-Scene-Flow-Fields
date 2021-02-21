@@ -15,12 +15,12 @@ The code is tested with Python3 and Pytorch >= 1.6, the dependencies includes co
     # Usage
     cd nsff_scripts
     # create camera intrinsics/extrinsic format for NSFF, same as original NeRF where it uses imgs2poses.py script from the LLFF code: https://github.com/Fyusion/LLFF/blob/master/imgs2poses.py
-    python save_poses_nerf.py --data_path "/home/xxx/nerf_data/kid-running/dense/"
+    python save_poses_nerf.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/"
     # Resize input images and run single view model
-    python run_midas.py --data_path "/home/xxx/nerf_data/kid-running/dense/"
-    # Run optical flow model
+    python run_midas.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/"
+    # Run optical flow model (For setup convenience, we use RAFT as background flow estimation model)
     cd RAFT
-    python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/nerf_data/kid-running/dense/ --epi_threhold 1.0
+    python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/ --epi_threhold 1.0
 ```
 
 ## Rendering from an example pretrained model
