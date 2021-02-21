@@ -85,7 +85,8 @@ from poseInterpolator import *
 
 def render_slowmo_bt(disps, render_poses, bt_poses, 
                      hwf, chunk, render_kwargs, 
-                     gt_imgs=None, savedir=None, render_factor=0):
+                     gt_imgs=None, savedir=None, 
+                     render_factor=0, target_idx=10):
     # import scipy.io
 
     H, W, focal = hwf
@@ -105,14 +106,16 @@ def render_slowmo_bt(disps, render_poses, bt_poses,
     os.makedirs(save_img_dir, exist_ok=True)
     # os.makedirs(save_depth_dir, exist_ok=True)
 
-    for i, cur_time in enumerate(np.linspace(0., 20.0, 200 + 1).tolist()):
+    for i, cur_time in enumerate(np.linspace(target_idx - 10., target_idx + 10., 200 + 1).tolist()):
         flow_time = int(np.floor(cur_time))
         ratio = cur_time - np.floor(cur_time)
         print('cur_time ', i, cur_time, ratio)
         t = time.time()
 
-        int_rot, int_trans = linear_pose_interp(render_poses[flow_time, :3, 3], render_poses[flow_time, :3, :3],
-                                                render_poses[flow_time + 1, :3, 3], render_poses[flow_time + 1, :3, :3], 
+        int_rot, int_trans = linear_pose_interp(render_poses[flow_time, :3, 3], 
+                                                render_poses[flow_time, :3, :3],
+                                                render_poses[flow_time + 1, :3, 3], 
+                                                render_poses[flow_time + 1, :3, :3], 
                                                 ratio)
 
         int_poses = np.concatenate((int_rot, int_trans[:, np.newaxis]), 1)
@@ -183,10 +186,11 @@ def render_slowmo_bt(disps, render_poses, bt_poses,
         # filename = os.path.join(save_depth_dir, '{:03d}.jpg'.format(i))
         # imageio.imwrite(filename, depth8)
 
-def render_dynamics_slowmo(ref_c2w, num_img, 
+def render_lockcam_slowmo(ref_c2w, num_img, 
                         hwf, chunk, render_kwargs, 
                         gt_imgs=None, savedir=None, 
-                        render_factor=0):
+                        render_factor=0,
+                        target_idx=5):
 
     H, W, focal = hwf
 
@@ -208,10 +212,8 @@ def render_dynamics_slowmo(ref_c2w, num_img,
 
     count = 0
 
-    for i, cur_time in enumerate(np.linspace(0., 10.0, 100 + 1).tolist()):
+    for i, cur_time in enumerate(np.linspace(target_idx - 5., target_idx + 5., 100 + 1).tolist()):
         ratio = cur_time - np.floor(cur_time)
-        print('cur_time ', i, cur_time, ratio)
-        t = time.time()
 
         render_pose = ref_c2w[:3,:4] #render_poses[i % num_frame_per_cycle][:3,:4]
 
@@ -221,8 +223,8 @@ def render_dynamics_slowmo(ref_c2w, num_img,
         num_img = gt_imgs.shape[0]
         img_idx_embed_1 = (np.floor(cur_time))/float(num_img) * 2. - 1.0
         img_idx_embed_2 = (np.floor(cur_time) + 1)/float(num_img) * 2. - 1.0
-
-        print('img_idx_embed_1 ', cur_time, img_idx_embed_1)
+        print('render lock camera time ', i, cur_time, ratio, time.time() - t)
+        t = time.time()
 
         ret1 = render_sm(img_idx_embed_1, 0, False,
                         num_img, 
@@ -243,8 +245,10 @@ def render_dynamics_slowmo(ref_c2w, num_img,
         num_sample = ret1['raw_rgb'].shape[2]
 
         for j in range(0, num_sample):
-            splat_alpha_dy_1, splat_rgb_dy_1, splat_alpha_rig_1, splat_rgb_rig_1 = splat_rgb_img(ret1, ratio, R_w2t, t_w2t, j, H, W, focal, True)
-            splat_alpha_dy_2, splat_rgb_dy_2, splat_alpha_rig_2, splat_rgb_rig_2 = splat_rgb_img(ret2, 1. - ratio, R_w2t, t_w2t, j, H, W, focal, False)
+            splat_alpha_dy_1, splat_rgb_dy_1, splat_alpha_rig_1, splat_rgb_rig_1 = splat_rgb_img(ret1, ratio, R_w2t, 
+                                                                                                t_w2t, j, H, W, focal, True)
+            splat_alpha_dy_2, splat_rgb_dy_2, splat_alpha_rig_2, splat_rgb_rig_2 = splat_rgb_img(ret2, 1. - ratio, R_w2t, 
+                                                                                                t_w2t, j, H, W, focal, False)
 
             final_rgb += T_i * (splat_alpha_dy_1 * splat_rgb_dy_1 + splat_alpha_rig_1 * splat_rgb_rig_1 ) * (1.0 - ratio)
             final_rgb += T_i * (splat_alpha_dy_2 * splat_rgb_dy_2 + splat_alpha_rig_2 * splat_rgb_rig_2 ) * ratio
@@ -535,8 +539,10 @@ def render_rays_sm(img_idx,
     raw_sf_ref2post = raw_ref[:, :, 7:10]
     # raw_blend_w_ref = raw_ref[:, :, 12]
 
-    raw_rgb, raw_alpha = raw2rgba_blend_slowmo(raw_rgba_ref, raw_blend_w, z_vals, rays_d, raw_noise_std)
-    raw_rgb_rigid, raw_alpha_rigid = raw2rgba_blend_slowmo(raw_rgba_rigid, (1. - raw_blend_w), z_vals, rays_d, raw_noise_std)
+    raw_rgb, raw_alpha = raw2rgba_blend_slowmo(raw_rgba_ref, raw_blend_w, 
+                                            z_vals, rays_d, raw_noise_std)
+    raw_rgb_rigid, raw_alpha_rigid = raw2rgba_blend_slowmo(raw_rgba_rigid, (1. - raw_blend_w), 
+                                                            z_vals, rays_d, raw_noise_std)
 
     ret = {'raw_rgb': raw_rgb, 'raw_alpha': raw_alpha,  
             'raw_rgb_rigid':raw_rgb_rigid, 'raw_alpha_rigid':raw_alpha_rigid,
@@ -570,7 +576,8 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024*16):
         embedded = torch.cat([embedded, embedded_dirs], -1)
     
     outputs_flat = batchify(fn, netchunk)(embedded)
-    outputs = torch.reshape(outputs_flat, list(inputs.shape[:-1]) + [outputs_flat.shape[-1]])
+    outputs = torch.reshape(outputs_flat, 
+                            list(inputs.shape[:-1]) + [outputs_flat.shape[-1]])
     return outputs
 
 
@@ -715,7 +722,7 @@ def get_points_single_image(H, W, focal, depth, c2w):
 
 
 def render_bullet_time(render_poses, img_idx_embed, num_img, 
-                             hwf, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
+                    hwf, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
 
     H, W, focal = hwf
 
@@ -765,42 +772,42 @@ def render_bullet_time(render_poses, img_idx_embed, num_img,
             # imageio.imwrite(filename, depth8)
 
 
-def render_dynamics(ref_c2w, num_img, 
-                    hwf, chunk, render_kwargs, 
-                    gt_imgs=None, savedir=None, render_factor=0):
+# def render_dynamics(ref_c2w, num_img, 
+#                     hwf, chunk, render_kwargs, 
+#                     gt_imgs=None, savedir=None, render_factor=0):
 
-    H, W, focal = hwf
+#     H, W, focal = hwf
 
-    if render_factor!=0:
-        # Render downsampled for speed
-        H = H//render_factor
-        W = W//render_factor
-        focal = focal/render_factor
+#     if render_factor!=0:
+#         # Render downsampled for speed
+#         H = H//render_factor
+#         W = W//render_factor
+#         focal = focal/render_factor
 
-    t = time.time()
+#     t = time.time()
 
-    for i in range(2, int(num_img)-2):
-        print(i, time.time() - t)
-        t = time.time()
+#     for i in range(2, int(num_img)-2):
+#         print(i, time.time() - t)
+#         t = time.time()
 
-        img_idx_embed = i/float(num_img) * 2. - 1.0
+#         img_idx_embed = i/float(num_img) * 2. - 1.0
 
-        ret = render(img_idx_embed, num_img, 
-                     H, W, focal, 
-                     chunk=1024*32, c2w=ref_c2w[:3,:4], 
-                     **render_kwargs)
+#         ret = render(img_idx_embed, num_img, 
+#                      H, W, focal, 
+#                      chunk=1024*32, c2w=ref_c2w[:3,:4], 
+#                      **render_kwargs)
 
-        depth = torch.clamp(ret['depth_map_ref']/percentile(ret['depth_map_ref'], 97), 0., 1.)  #1./disp
-        rgb = ret['rgb_map_ref'].cpu().numpy()
+#         depth = torch.clamp(ret['depth_map_ref']/percentile(ret['depth_map_ref'], 97), 0., 1.)  #1./disp
+#         rgb = ret['rgb_map_ref'].cpu().numpy()
 
-        # if savedir is not None:
-        rgb8 = to8b(rgb)
-        depth8 = to8b(depth.unsqueeze(-1).repeat(1, 1, 3).cpu().numpy())
+#         # if savedir is not None:
+#         rgb8 = to8b(rgb)
+#         depth8 = to8b(depth.unsqueeze(-1).repeat(1, 1, 3).cpu().numpy())
 
-        render_rgb = np.concatenate((rgb8, depth8), 1)
+#         render_rgb = np.concatenate((rgb8, depth8), 1)
 
-        filename = os.path.join(savedir, '{:03d}.jpg'.format(i))
-        imageio.imwrite(filename, render_rgb)
+#         filename = os.path.join(savedir, '{:03d}.jpg'.format(i))
+#         imageio.imwrite(filename, render_rgb)
 
 
 def create_nerf(args):
@@ -821,7 +828,10 @@ def create_nerf(args):
                  input_ch=input_ch, output_ch=output_ch, skips=skips,
                  input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs).to(device)
 
-    device_ids = [0, 1]
+    # print(torch.cuda.device_count())
+    # sys.exit()
+
+    device_ids = list(range(torch.cuda.device_count()))
     model = torch.nn.DataParallel(model, device_ids=device_ids)
 
     grad_vars = list(model.parameters())

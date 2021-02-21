@@ -1,5 +1,4 @@
 import sys
-
 sys.path.append('core')
 
 import argparse
@@ -49,14 +48,17 @@ def run_maskrcnn(model, img_path):
             if objPredictions['labels'][intMask].item() == 1: # person
                 tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
 
-            # if objPredictions['labels'][intMask].item() == 4: # motorcycle
-                # tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
+            if objPredictions['labels'][intMask].item() == 4: # motorcycle
+                tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
 
-            # if objPredictions['labels'][intMask].item() == 2: # bicycle
-                # tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
+            if objPredictions['labels'][intMask].item() == 2: # bicycle
+                tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
 
-            # if objPredictions['labels'][intMask].item() == 28: # umbrella
-                # tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
+            if objPredictions['labels'][intMask].item() == 8: # truck
+                tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
+
+            if objPredictions['labels'][intMask].item() == 28: # umbrella
+                tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
 
             if objPredictions['labels'][intMask].item() == 17: # cat
                 tenHumans[objPredictions['masks'][intMask, 0, :, :] > threshold] = 0.0
@@ -164,7 +166,9 @@ def generate_motion_segmentation(basedir, threshold):
         img_path = img_path_list[i]
         img_name = img_path.split('/')[-1]
         semantic_mask = run_maskrcnn(netMaskrcnn, img_path)
-        cv2.imwrite(os.path.join(semantic_mask_dir, img_name.replace('.jpg', '.png')), semantic_mask)
+        cv2.imwrite(os.path.join(semantic_mask_dir, 
+                                img_name.replace('.jpg', '.png')), 
+                    semantic_mask)
 
     # combine them
     save_mask_dir = os.path.join(basedir, 'motion_masks')
@@ -179,17 +183,20 @@ def generate_motion_segmentation(basedir, threshold):
         print(mask_path)
 
         motion_mask = cv2.imread(mask_path)
-        motion_mask = cv2.resize(motion_mask, (resized_width, resized_height), interpolation=cv2.INTER_NEAREST) 
+        motion_mask = cv2.resize(motion_mask, (resized_width, resized_height), 
+                                interpolation=cv2.INTER_NEAREST) 
         motion_mask = motion_mask[:, :, 0] > 0.1
 
         # combine from motion segmentation
         semantic_mask = cv2.imread(os.path.join(semantic_dir, mask_path.split('/')[-1]))
-        semantic_mask = cv2.resize(semantic_mask, (resized_width, resized_height), interpolation=cv2.INTER_NEAREST)
+        semantic_mask = cv2.resize(semantic_mask, (resized_width, resized_height), 
+                                interpolation=cv2.INTER_NEAREST)
         semantic_mask = semantic_mask[:, :, 0] > 0.1
         motion_mask = semantic_mask | motion_mask
 
         motion_mask = skimage.morphology.dilation(motion_mask, skimage.morphology.disk(2))
-        cv2.imwrite(os.path.join(save_mask_dir, '%s'%mask_path.split('/')[-1]), np.uint8(np.clip((motion_mask), 0, 1) * 255) )
+        cv2.imwrite(os.path.join(save_mask_dir, '%s'%mask_path.split('/')[-1]), 
+                    np.uint8(np.clip((motion_mask), 0, 1) * 255) )
         # cv2.imwrite(os.path.join(mask_img_dir, '%s'%mask_path.split('/')[-1]), np.uint8(np.clip( (1. - motion_mask[..., np.newaxis]) * image, 0, 1) * 255) )
 
     # delete old mask dir
@@ -371,8 +378,8 @@ if __name__ == '__main__':
                         help='COLMAP Directory')
     parser.add_argument("--epi_threhold", type=float, 
                         default=1.0,
-                        help='epipolar distance threshold for phiscal motion segmentation')
+                        help='epipolar distance threshold for physical motion segmentation')
 
     args = parser.parse_args()
-    # demo(args)
+    demo(args)
     generate_motion_segmentation(args.data_path, args.epi_threhold)

@@ -11,7 +11,6 @@ import cv2
 
 from render_utils import *
 from run_nerf_helpers import *
-
 from load_llff import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,7 +30,7 @@ def config_parser():
     parser.add_argument("--datadir", type=str, default='./data/llff/fern',
 
                         help='input data directory')
-    parser.add_argument("--render_dynamics_slowmo", action='store_true', 
+    parser.add_argument("--render_lockcam_slowmo", action='store_true', 
                         help='render fixed view + slowmo')
     parser.add_argument("--render_slowmo_bt", action='store_true', 
                         help='render space-time interpolation')
@@ -98,11 +97,6 @@ def config_parser():
                         help='options: llff / blender / deepvoxels')
     parser.add_argument("--testskip", type=int, default=8, 
                         help='will load 1/N images from test/val sets, useful for large datasets like deepvoxels')
-
-    ## deepvoxels flags
-    # parser.add_argument("--shape", type=str, default='greek', 
-                        # help='options : armchair / cube / greek / vase')
-
     ## blender flags
     parser.add_argument("--white_bkgd", action='store_true', 
                         help='set to render synthetic data on a white bkgd (always use for dvoxels)')
@@ -130,11 +124,11 @@ def config_parser():
     parser.add_argument("--decay_optical_flow_w", action='store_true', 
                         help='decay optical flow weights')
     parser.add_argument("--ndc_depth", action='store_true', 
-                        help='reconstruction MUST be ndc space')
+                        help='reconstruction only supports NDC space')
     parser.add_argument("--w_depth",   type=float, default=0.04, 
-                        help='weights of depth')
+                        help='weights of depth loss')
     parser.add_argument("--w_optical_flow", type=float, default=0.02, 
-                        help='weights of optical flow')
+                        help='weights of optical flow loss')
     parser.add_argument("--w_sm", type=float, default=0.1, 
                         help='weights of scene flow smoothness')
     parser.add_argument("--w_sf_reg", type=float, default=0.1, 
@@ -238,31 +232,41 @@ def train():
 
 
     if args.render_bt:
+        print('RENDER VIEW INTERPOLATION')
+        
         render_poses = torch.Tensor(render_poses).to(device)
         print('target_idx ', target_idx)
 
         num_img = float(poses.shape[0])
         img_idx_embed = target_idx/float(num_img) * 2. - 1.0
 
-        testsavedir = os.path.join(basedir, expname, 'render-spiral-frame-%03d'%target_idx + '_{}_{:06d}'.format('test' if args.render_test else 'path', start))
+        testsavedir = os.path.join(basedir, expname, 
+                                'render-spiral-frame-%03d'%\
+                                target_idx + '_{}_{:06d}'.format('test' if args.render_test else 'path', start))
         os.makedirs(testsavedir, exist_ok=True)
         with torch.no_grad():
             render_bullet_time(render_poses, img_idx_embed, num_img, hwf, 
                                args.chunk, render_kwargs_test, 
-                               gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+                               gt_imgs=images, savedir=testsavedir, 
+                               render_factor=args.render_factor)
 
         return
 
-    if args.render_dynamics_slowmo:
+    if args.render_lockcam_slowmo:
+        print('RENDER TIME INTERPOLATION')
+
         num_img = float(poses.shape[0])
         ref_c2w = torch.Tensor(ref_c2w).to(device)
+        print('target_idx ', target_idx)
 
-        testsavedir = os.path.join(basedir, expname, 'render-dynamics-slowmo')
+        testsavedir = os.path.join(basedir, expname, 'render-lockcam-slowmo')
         os.makedirs(testsavedir, exist_ok=True)
         with torch.no_grad():
-            render_dynamics_slowmo(ref_c2w, num_img, hwf, 
+            render_lockcam_slowmo(ref_c2w, num_img, hwf, 
                             args.chunk, render_kwargs_test, 
-                            gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+                            gt_imgs=images, savedir=testsavedir, 
+                            render_factor=args.render_factor,
+                            target_idx=target_idx)
 
             return 
 
@@ -276,14 +280,17 @@ def train():
 
         with torch.no_grad():
 
-            testsavedir = os.path.join(basedir, expname, 'render-slowmo_bt_{}_{:06d}'.format('test' if args.render_test else 'path', start))
+            testsavedir = os.path.join(basedir, expname, 
+                                    'render-slowmo_bt_{}_{:06d}'.format('test' if args.render_test else 'path', start))
             os.makedirs(testsavedir, exist_ok=True)
             images = torch.Tensor(images)#.to(device)
 
             print('render poses shape', render_poses.shape)
             render_slowmo_bt(depths, render_poses, bt_poses, 
                             hwf, args.chunk, render_kwargs_test,
-                            gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+                            gt_imgs=images, savedir=testsavedir, 
+                            render_factor=args.render_factor, 
+                            target_idx=10)
             # print('Done rendering', i,testsavedir)
 
         return
@@ -316,7 +323,8 @@ def train():
     for i in range(start, N_iters):
         chain_bwd = 1 - chain_bwd
         time0 = time.time()
-        print('expname ', expname, ' chain_bwd ', chain_bwd, ' lindisp ', args.lindisp, ' decay_iteration ', decay_iteration)
+        print('expname ', expname, ' chain_bwd ', chain_bwd, 
+            ' lindisp ', args.lindisp, ' decay_iteration ', decay_iteration)
         print('Random FROM SINGLE IMAGE')
         # Random from one image
         img_i = np.random.choice(i_train)
@@ -331,14 +339,20 @@ def train():
         mask_gt = masks[img_i].cuda()
 
         if img_i == 0:
-            flow_fwd, fwd_mask = read_optical_flow(args.datadir, img_i, args.start_frame, fwd=True)
+            flow_fwd, fwd_mask = read_optical_flow(args.datadir, img_i, 
+                                                args.start_frame, fwd=True)
             flow_bwd, bwd_mask = np.zeros_like(flow_fwd), np.zeros_like(fwd_mask)
         elif img_i == num_img - 1:
-            flow_bwd, bwd_mask = read_optical_flow(args.datadir, img_i, args.start_frame, fwd=False)
+            flow_bwd, bwd_mask = read_optical_flow(args.datadir, img_i, 
+                                                args.start_frame, fwd=False)
             flow_fwd, fwd_mask = np.zeros_like(flow_bwd), np.zeros_like(bwd_mask)
         else:
-            flow_fwd, fwd_mask = read_optical_flow(args.datadir, img_i, args.start_frame, fwd=True)
-            flow_bwd, bwd_mask = read_optical_flow(args.datadir, img_i, args.start_frame, fwd=False)
+            flow_fwd, fwd_mask = read_optical_flow(args.datadir, 
+                                                img_i, args.start_frame, 
+                                                fwd=True)
+            flow_bwd, bwd_mask = read_optical_flow(args.datadir, 
+                                                img_i, args.start_frame, 
+                                                fwd=False)
 
         # # ======================== TEST 
         TEST = False
@@ -369,8 +383,10 @@ def train():
 
             cv2.imwrite('im_%d.jpg'%(img_i),
                         np.uint8(np.clip(target.cpu().numpy()[:, :, ::-1], 0, 1) * 255))
-            cv2.imwrite('im_%d_warp.jpg'%(img_i + 1), np.uint8(np.clip(warped_im2[:, :, ::-1], 0, 1) * 255))
-            cv2.imwrite('im_%d_warp.jpg'%(img_i - 1), np.uint8(np.clip(warped_im0[:, :, ::-1], 0, 1) * 255))
+            cv2.imwrite('im_%d_warp.jpg'%(img_i + 1), 
+                        np.uint8(np.clip(warped_im2[:, :, ::-1], 0, 1) * 255))
+            cv2.imwrite('im_%d_warp.jpg'%(img_i - 1), 
+                        np.uint8(np.clip(warped_im0[:, :, ::-1], 0, 1) * 255))
             plt.savefig('depth_flow_%d.jpg'%img_i)
             sys.exit()
 
@@ -391,8 +407,11 @@ def train():
                 print('HARD MINING STAGE !')
                 num_extra_sample = args.num_extra_sample
                 print('num_extra_sample ', num_extra_sample)
-                select_inds_hard = np.random.choice(hard_coords.shape[0], size=[min(hard_coords.shape[0], num_extra_sample)], replace=False)  # (N_rand,)
-                select_inds_all = np.random.choice(coords.shape[0], size=[N_rand], replace=False)  # (N_rand,)
+                select_inds_hard = np.random.choice(hard_coords.shape[0], 
+                                                size=[min(hard_coords.shape[0], num_extra_sample)], 
+                                                replace=False)  # (N_rand,)
+                select_inds_all = np.random.choice(coords.shape[0], 
+                                                size=[N_rand], replace=False)  # (N_rand,)
 
                 select_coords_hard = hard_coords[select_inds_hard].long()
                 select_coords_all = coords[select_inds_all].long()

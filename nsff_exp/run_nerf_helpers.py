@@ -552,9 +552,13 @@ def projection_from_ndc(c2w, H, W, f, weights_ref, raw_pts, n_dim=1):
     pts_3d_e_world = NDC2Euclidean(pts_3d, H, W, f)
 
     if n_dim == 1:
-        pts_3d_e_local = se3_transform_points(pts_3d_e_world, R_w2c.unsqueeze(0), t_w2c.unsqueeze(0))
+        pts_3d_e_local = se3_transform_points(pts_3d_e_world, 
+                                              R_w2c.unsqueeze(0), 
+                                              t_w2c.unsqueeze(0))
     else:
-        pts_3d_e_local = se3_transform_points(pts_3d_e_world, R_w2c.unsqueeze(0).unsqueeze(0), t_w2c.unsqueeze(0).unsqueeze(0))
+        pts_3d_e_local = se3_transform_points(pts_3d_e_world, 
+                                              R_w2c.unsqueeze(0).unsqueeze(0), 
+                                              t_w2c.unsqueeze(0).unsqueeze(0))
 
     pts_2d = perspective_projection(pts_3d_e_local, H, W, f)
 
@@ -562,9 +566,15 @@ def projection_from_ndc(c2w, H, W, f, weights_ref, raw_pts, n_dim=1):
 
 
 def compute_optical_flow(pose_post, pose_ref, pose_prev, H, W, focal, ret, n_dim=1):
-    pts_2d_ref = projection_from_ndc(pose_ref, H, W, focal, ret['weights_ref_dy'], ret['raw_pts_ref'], n_dim) #projection(se3_transform(w2c, NDC2Euclidean(pts_post[:, :, :3])))
-    pts_2d_post = projection_from_ndc(pose_post, H, W, focal, ret['weights_ref_dy'], ret['raw_pts_post'], n_dim) #projection(se3_transform(w2c, NDC2Euclidean(pts_post[:, :, :3])))
-    pts_2d_prev = projection_from_ndc(pose_prev, H, W, focal, ret['weights_ref_dy'], ret['raw_pts_prev'], n_dim) #projection(se3_transform(w2c, NDC2Euclidean(pts_post[:, :, :3])))
+    pts_2d_ref = projection_from_ndc(pose_ref, H, W, focal, 
+                                     ret['weights_ref_dy'], ret['raw_pts_ref'], 
+                                     n_dim) #projection(se3_transform(w2c, NDC2Euclidean(pts_post[:, :, :3])))
+    pts_2d_post = projection_from_ndc(pose_post, H, W, focal, 
+                                     ret['weights_ref_dy'], ret['raw_pts_post'], 
+                                     n_dim) #projection(se3_transform(w2c, NDC2Euclidean(pts_post[:, :, :3])))
+    pts_2d_prev = projection_from_ndc(pose_prev, H, W, focal, 
+                                     ret['weights_ref_dy'], ret['raw_pts_prev'], 
+                                     n_dim) #projection(se3_transform(w2c, NDC2Euclidean(pts_post[:, :, :3])))
 
     render_of_fwd = pts_2d_post - pts_2d_ref
     render_of_bwd = pts_2d_prev - pts_2d_ref
@@ -578,7 +588,8 @@ def read_optical_flow(basedir, img_i, start_frame, fwd):
     flow_dir = os.path.join(basedir, 'flow_i1')
 
     if fwd:
-      fwd_flow_path = os.path.join(flow_dir, '%05d_fwd.npz'%(start_frame + img_i))
+      fwd_flow_path = os.path.join(flow_dir, 
+                                  '%05d_fwd.npz'%(start_frame + img_i))
       fwd_data = np.load(fwd_flow_path)#, (w, h))
       fwd_flow, fwd_mask = fwd_data['flow'], fwd_data['mask']
       fwd_mask = np.float32(fwd_mask)  
@@ -586,7 +597,8 @@ def read_optical_flow(basedir, img_i, start_frame, fwd):
       return fwd_flow, fwd_mask
     else:
 
-      bwd_flow_path = os.path.join(flow_dir, '%05d_bwd.npz'%(start_frame + img_i))
+      bwd_flow_path = os.path.join(flow_dir, 
+                                  '%05d_bwd.npz'%(start_frame + img_i))
 
       bwd_data = np.load(bwd_flow_path)#, (w, h))
       bwd_flow, bwd_mask = bwd_data['flow'], bwd_data['mask']
@@ -601,7 +613,9 @@ def warp_flow(img, flow):
     flow_new[:,:,0] += np.arange(w)
     flow_new[:,:,1] += np.arange(h)[:,np.newaxis]
 
-    res = cv2.remap(img, flow_new, None, cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT)
+    res = cv2.remap(img, flow_new, None, 
+                    cv2.INTER_CUBIC, 
+                    borderMode=cv2.BORDER_CONSTANT)
     return res
 
 def compute_sf_sm_loss(pts_1_ndc, pts_2_ndc, H, W, f):
@@ -614,7 +628,8 @@ def compute_sf_sm_loss(pts_1_ndc, pts_2_ndc, H, W, f):
     pts_3d_1_world = NDC2Euclidean(pts_1_ndc_close, H, W, f)
     pts_3d_2_world = NDC2Euclidean(pts_2_ndc_close, H, W, f)
         
-    dist = torch.norm(pts_3d_1_world[..., :-1, :] - pts_3d_1_world[..., 1:, :], dim=-1, keepdim=True)
+    dist = torch.norm(pts_3d_1_world[..., :-1, :] - pts_3d_1_world[..., 1:, :], 
+                      dim=-1, keepdim=True)
     weights = torch.exp(-dist * sigma).detach()
 
     # scene flow 
@@ -630,9 +645,12 @@ def compute_sf_lke_loss(pts_ref_ndc, pts_post_ndc, pts_prev_ndc, H, W, f):
     pts_post_ndc_close = pts_post_ndc[..., :int(n * 0.9), :]
     pts_prev_ndc_close = pts_prev_ndc[..., :int(n * 0.9), :]
 
-    pts_3d_ref_world = NDC2Euclidean(pts_ref_ndc_close, H, W, f)
-    pts_3d_post_world = NDC2Euclidean(pts_post_ndc_close, H, W, f)
-    pts_3d_prev_world = NDC2Euclidean(pts_prev_ndc_close, H, W, f)
+    pts_3d_ref_world = NDC2Euclidean(pts_ref_ndc_close, 
+                                     H, W, f)
+    pts_3d_post_world = NDC2Euclidean(pts_post_ndc_close, 
+                                     H, W, f)
+    pts_3d_prev_world = NDC2Euclidean(pts_prev_ndc_close, 
+                                     H, W, f)
     
     # scene flow 
     scene_flow_w_ref2post = pts_3d_post_world - pts_3d_ref_world

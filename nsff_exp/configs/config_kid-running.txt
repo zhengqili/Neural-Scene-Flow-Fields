@@ -1,7 +1,7 @@
 expname = kid-running_ndc_5f_sv_of_sm_unify3
 
 basedir = ./logs
-datadir = /home/zl548/nerf_data/kid-running/dense
+datadir = /home/zl548/Neural-Scene-Flow-Fields/kid-running/dense
 
 dataset_type = llff
 
