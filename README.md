@@ -18,8 +18,9 @@ The code is tested with Python3 and Pytorch >= 1.6, the dependencies includes co
     python save_poses_nerf.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/"
     # Resize input images and run single view model
     python run_midas.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/"
-    # Run optical flow model (For setup convenience, we use RAFT as backbond flow estimation model)
+    # Run optical flow model 
     cd RAFT
+    ./download_models.sh
     python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/ --epi_threhold 1.0
 ```
 
