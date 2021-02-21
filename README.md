@@ -23,8 +23,10 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
     python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/nerf_data/kid-running/dense/ --epi_threhold 1.0
 ```
 
-## Rendering from pretrained models
-(1) Download pretraind model "kid-running_ndc_5f_sv_of_sm_unify3_F00-30.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, and unzip and put it in the folder "nsff_exp/logs/kid-running_ndc_5f_sv_of_sm_unify3_F00-30/360000.tar". Set datadir in config/config_kid-running.txt to the root directory of input video. Then go to directory "nsff_exp":
+## Rendering from an example pretrained model
+(1) Download pretraind model "kid-running_ndc_5f_sv_of_sm_unify3_F00-30.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing. Unzipping and putting it in the folder "nsff_exp/logs/kid-running_ndc_5f_sv_of_sm_unify3_F00-30/360000.tar". 
+
+Set datadir in config/config_kid-running.txt to the root directory of input video. Then go to directory "nsff_exp":
 ```bash
    cd nsff_exp
 ```
@@ -32,7 +34,7 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_bt --target_idx 10
 ```
-(3) Rendering with fixed Viewpoint, time interpolation
+(3) Rendering with fixed viewpoint, time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_dynamics_slowmo --target_idx 5
 ```
@@ -42,16 +44,16 @@ The code is tested with Pytorch >= 1.6, the depdenency library includes PIL, ope
 ```
 
 ## Training
-(1) In configs/config_kid-running.txt, changing expname to any name that you like (different from the original one), and running the following command for training the representation:
+(1) In configs/config_kid-running.txt, modifying expname to any name you like (different from the original one), and running the following command for training the model:
 ```bash
     python run_nerf.py --config configs/config_kid-running.txt
 ```
 The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
-## Evaluation on Dynamic Scene Dataset
+## Evaluation on the Dynamic Scene Dataset
 (1) Download Dynamic Scene dataset "dynamic_scene_data_full.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing
 
-(2) Download pretrained models "dynamic_scene_pretrained_models.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, unzip and put them in the folder "nsff_exp/logs/" 
+(2) Download pretrained model "dynamic_scene_pretrained_models.zip" from https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing, unzip and put them in the folder "nsff_exp/logs/" 
 
 (3) Run the following command for each scene:
 ```bash
@@ -64,4 +66,12 @@ The code is based on several prior work:
 (1) https://github.com/sniklaus/softmax-splatting
 
 (2) https://github.com/yenchenlin/nerf-pytorch
+
+(3) https://github.com/richzhang/PerceptualSimilarity
+
+(4) https://github.com/intel-isl/MiDaS
+
+(5) https://github.com/princeton-vl/RAFT
+
+(6) https://github.com/NVIDIA/flownet2-pytorch
 
