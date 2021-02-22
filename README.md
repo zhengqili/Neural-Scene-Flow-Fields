@@ -45,17 +45,6 @@ By running the example command, you should get the following result:
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_lockcam_slowmo --target_idx 5
 ```
-Several parameters in config files you might need to know for training a good model
-* N_samples: in order to render images with higher resolution, you have to increase number sampled points
-* start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth (but it can drastically increase training time and memory usage).
-* decay_iteration: data-driven prior losses lineary decay every 1000*decay_iteration iterations, it's usually good to match it to equalt to the number of training frames. 
-* no_ndc: our current implementation only supports reconstruction in NDC space, meaning it only works for forward-facing scene like original NeRF. But it should be easy to adapt to euclidean space.
-* use_motion_mask, num_extra_sample: whether to use estimated coarse motion segmentation mask to perform hard-mining during initialization stage, and how many extra samples during hard-mining stage.
-* w_depth, w_optical_flow: weight of losses for single-view depth and geometry consistency prior described in the paper
-* w_cycle: weights of scene flow cycle consistency loss
-* w_sm: weight of scene flow smoothness loss
-* w_prob_reg: weight of disocculusion weight regularization
-
 
 By running the example command, you should get the following result:
 ![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/ti.gif)
@@ -74,6 +63,17 @@ By running the example command, you should get the following result:
     python run_nerf.py --config configs/config_kid-running.txt
 ```
 The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
+
+Several parameters in config files you might need to know for training a good model
+* N_samples: in order to render images with higher resolution, you have to increase number sampled points
+* start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth (but it can drastically increase training time and memory usage).
+* decay_iteration: data-driven prior losses lineary decay every 1000*decay_iteration iterations, it's usually good to match it to equalt to the number of training frames. 
+* no_ndc: our current implementation only supports reconstruction in NDC space, meaning it only works for forward-facing scene like original NeRF. But it should be easy to adapt to euclidean space.
+* use_motion_mask, num_extra_sample: whether to use estimated coarse motion segmentation mask to perform hard-mining during initialization stage, and how many extra samples during hard-mining stage.
+* w_depth, w_optical_flow: weight of losses for single-view depth and geometry consistency prior described in the paper
+* w_cycle: weights of scene flow cycle consistency loss
+* w_sm: weight of scene flow smoothness loss
+* w_prob_reg: weight of disocculusion weight regularization
 
 ## Evaluation on the Dynamic Scene Dataset
 (1) Download Dynamic Scene dataset "dynamic_scene_data_full.zip" from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing)
@@ -104,4 +104,12 @@ The code is based on implementation of several prior work:
 This repository is released under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
 
 If you find our code/models useful, please consider citing our paper:
+```bash
+@article{Li20arxiv_nsff,
+	Archiveprefix = {arXiv},
+	Author = {Zhengqi Li and Simon Niklaus and Noah Snavely and Oliver Wang},
+	Journal = {https://arxiv.org/abs/2011.13084},
+	Title = {Neural Scene Flow Fields for Space-Time View Synthesis of Dynamic Scenes},
+	Year = {2020}
+}
 
