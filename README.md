@@ -45,6 +45,14 @@ By running the example command, you should get the following result:
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_lockcam_slowmo --target_idx 5
 ```
+Several parameters you might need to know for training a good model
+* N_samples: in order to render images with higher resolution, you have to increase number sampled points
+* start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth (but it can drastically increase training time and memory usage).
+* decay_iteration: data-driven prior losses lineary decay every 1000*decay_iteration iterations, it's usually good to match it to equalt to the number of training frames. 
+* no_ndc: our current implementation only supports reconstruction in NDC space, but should be easy to adapt to euclidean space.
+* use_motion_mask, num_extra_sample: whether to use estimated coarse motion segmentation mask to perform hard-mining during initialization stage, and how many extra samples during hard-mining stage.
+* 
+
 
 By running the example command, you should get the following result:
 ![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/ti.gif)
@@ -88,4 +96,9 @@ The code is based on implementation of several prior work:
 (5) https://github.com/princeton-vl/RAFT
 
 (6) https://github.com/NVIDIA/flownet2-pytorch
+
+## License
+This repository is released under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
+
+If you find our code/models useful, please consider citing our paper:
 
