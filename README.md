@@ -75,7 +75,7 @@ Several parameters in config files you might need to know for training a good mo
 * N_samples: in order to render images with higher resolution, you have to increase number sampled points
 * start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth (but it can drastically increase training time and memory usage).
 * decay_iteration: data-driven prior losses lineary decay every 1000*decay_iteration iterations, it's usually good to match it to equalt to the number of training frames. 
-* no_ndc: our current implementation only supports reconstruction in NDC space, meaning it only works for forward-facing scene like original NeRF. But it should be easy to adapt to euclidean space.
+* no_ndc: our current implementation only supports reconstruction in NDC space, meaning it only works for forward-facing scene like original NeRF. But it should be not hard to adapt to euclidean space.
 * use_motion_mask, num_extra_sample: whether to use estimated coarse motion segmentation mask to perform hard-mining during initialization stage, and how many extra samples during hard-mining stage.
 * w_depth, w_optical_flow: weight of losses for single-view depth and geometry consistency prior described in the paper
 * w_cycle: weights of scene flow cycle consistency loss
