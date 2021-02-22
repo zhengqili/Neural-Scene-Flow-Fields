@@ -131,7 +131,7 @@ def config_parser():
                         help='weights of optical flow loss')
     parser.add_argument("--w_sm", type=float, default=0.1, 
                         help='weights of scene flow smoothness')
-    parser.add_argument("--w_sf_reg", type=float, default=0.1, 
+    parser.add_argument("--w_sf_reg", type=float, default=0.01, 
                         help='weights of scene flow regularization')
     parser.add_argument("--w_cycle", type=float, default=0.1, 
                         help='weights of cycle consistency')
@@ -295,8 +295,6 @@ def train():
 
         return
 
-
-
     # Prepare raybatch tensor if batching random rays
     N_rand = args.N_rand
     # Move training data to GPU
@@ -329,7 +327,7 @@ def train():
         # Random from one image
         img_i = np.random.choice(i_train)
 
-        if i % (decay_iteration * 1000 // 2) == 0:
+        if i % (decay_iteration * 1000) == 0:
             torch.cuda.empty_cache()
 
         target = images[img_i].cuda()
@@ -357,6 +355,10 @@ def train():
         # # ======================== TEST 
         TEST = False
         if TEST:
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+
             print('CHECK DEPTH and FLOW and exiting')
             print(images[img_i].shape)
             print(flow_fwd.shape, img_i)
@@ -408,10 +410,12 @@ def train():
                 num_extra_sample = args.num_extra_sample
                 print('num_extra_sample ', num_extra_sample)
                 select_inds_hard = np.random.choice(hard_coords.shape[0], 
-                                                size=[min(hard_coords.shape[0], num_extra_sample)], 
-                                                replace=False)  # (N_rand,)
+                                                    size=[min(hard_coords.shape[0], 
+                                                        num_extra_sample)], 
+                                                    replace=False)  # (N_rand,)
                 select_inds_all = np.random.choice(coords.shape[0], 
-                                                size=[N_rand], replace=False)  # (N_rand,)
+                                                size=[N_rand], 
+                                                replace=False)  # (N_rand,)
 
                 select_coords_hard = hard_coords[select_inds_hard].long()
                 select_coords_all = coords[select_inds_all].long()
@@ -419,21 +423,32 @@ def train():
                 select_coords = torch.cat([select_coords_all, select_coords_hard], 0)
 
             else:
-                select_inds = np.random.choice(coords.shape[0], size=[N_rand], replace=False)  # (N_rand,)
+                select_inds = np.random.choice(coords.shape[0], 
+                                            size=[N_rand], 
+                                            replace=False)  # (N_rand,)
                 select_coords = coords[select_inds].long()  # (N_rand, 2)
             
-            rays_o = rays_o[select_coords[:, 0], select_coords[:, 1]]  # (N_rand, 3)
-            rays_d = rays_d[select_coords[:, 0], select_coords[:, 1]]  # (N_rand, 3)
+            rays_o = rays_o[select_coords[:, 0], 
+                            select_coords[:, 1]]  # (N_rand, 3)
+            rays_d = rays_d[select_coords[:, 0], 
+                            select_coords[:, 1]]  # (N_rand, 3)
             batch_rays = torch.stack([rays_o, rays_d], 0)
-            target_rgb = target[select_coords[:, 0], select_coords[:, 1]]  # (N_rand, 3)
-            target_depth = depth_gt[select_coords[:, 0], select_coords[:, 1]]
-            target_mask = mask_gt[select_coords[:, 0], select_coords[:, 1]].unsqueeze(-1)
+            target_rgb = target[select_coords[:, 0], 
+                                select_coords[:, 1]]  # (N_rand, 3)
+            target_depth = depth_gt[select_coords[:, 0], 
+                                select_coords[:, 1]]
+            target_mask = mask_gt[select_coords[:, 0], 
+                                select_coords[:, 1]].unsqueeze(-1)
 
-            target_of_fwd = flow_fwd[select_coords[:, 0], select_coords[:, 1]]
-            target_fwd_mask = fwd_mask[select_coords[:, 0], select_coords[:, 1]].unsqueeze(-1)#.repeat(1, 2)
+            target_of_fwd = flow_fwd[select_coords[:, 0], 
+                                     select_coords[:, 1]]
+            target_fwd_mask = fwd_mask[select_coords[:, 0], 
+                                     select_coords[:, 1]].unsqueeze(-1)#.repeat(1, 2)
 
-            target_of_bwd = flow_bwd[select_coords[:, 0], select_coords[:, 1]]
-            target_bwd_mask = bwd_mask[select_coords[:, 0], select_coords[:, 1]].unsqueeze(-1)#.repeat(1, 2)
+            target_of_bwd = flow_bwd[select_coords[:, 0], 
+                                     select_coords[:, 1]]
+            target_bwd_mask = bwd_mask[select_coords[:, 0], 
+                                     select_coords[:, 1]].unsqueeze(-1)#.repeat(1, 2)
 
         img_idx_embed = img_i/num_img * 2. - 1.0
 
@@ -455,7 +470,10 @@ def train():
         pose_post = poses[min(img_i + 1, int(num_img) - 1), :3,:4]
         pose_prev = poses[max(img_i - 1, 0), :3,:4]
 
-        render_of_fwd, render_of_bwd = compute_optical_flow(pose_post, pose, pose_prev, H, W, focal, ret)
+        render_of_fwd, render_of_bwd = compute_optical_flow(pose_post, 
+                                                            pose, pose_prev, 
+                                                            H, W, focal, 
+                                                            ret)
 
         optimizer.zero_grad()
 
@@ -511,25 +529,44 @@ def train():
 
         if img_i == 0:
             print('only fwd flow')
-            flow_loss = w_of * compute_mae(render_of_fwd, target_of_fwd, target_fwd_mask)#torch.sum(torch.abs(render_of_fwd - target_of_fwd) * target_fwd_mask)/(torch.sum(target_fwd_mask) + 1e-8)
+            flow_loss = w_of * compute_mae(render_of_fwd, 
+                                        target_of_fwd, 
+                                        target_fwd_mask)#torch.sum(torch.abs(render_of_fwd - target_of_fwd) * target_fwd_mask)/(torch.sum(target_fwd_mask) + 1e-8)
         elif img_i == num_img - 1:
             print('only bwd flow')
-            flow_loss = w_of * compute_mae(render_of_bwd, target_of_bwd, target_bwd_mask)#torch.sum(torch.abs(render_of_bwd - target_of_bwd) * target_bwd_mask)/(torch.sum(target_bwd_mask) + 1e-8)
+            flow_loss = w_of * compute_mae(render_of_bwd, 
+                                        target_of_bwd, 
+                                        target_bwd_mask)#torch.sum(torch.abs(render_of_bwd - target_of_bwd) * target_bwd_mask)/(torch.sum(target_bwd_mask) + 1e-8)
         else:
-            flow_loss = w_of * compute_mae(render_of_fwd, target_of_fwd, target_fwd_mask)#torch.sum(torch.abs(render_of_fwd - target_of_fwd) * target_fwd_mask)/(torch.sum(target_fwd_mask) + 1e-8)
-            flow_loss += w_of * compute_mae(render_of_bwd, target_of_bwd, target_bwd_mask)#torch.sum(torch.abs(render_of_bwd - target_of_bwd) * target_bwd_mask)/(torch.sum(target_bwd_mask) + 1e-8)
+            flow_loss = w_of * compute_mae(render_of_fwd, 
+                                        target_of_fwd, 
+                                        target_fwd_mask)#torch.sum(torch.abs(render_of_fwd - target_of_fwd) * target_fwd_mask)/(torch.sum(target_fwd_mask) + 1e-8)
+            flow_loss += w_of * compute_mae(render_of_bwd, 
+                                        target_of_bwd, 
+                                        target_bwd_mask)#torch.sum(torch.abs(render_of_bwd - target_of_bwd) * target_bwd_mask)/(torch.sum(target_bwd_mask) + 1e-8)
 
         # scene flow smoothness loss
-        sf_sm_loss = args.w_sm * (compute_sf_sm_loss(ret['raw_pts_ref'], ret['raw_pts_post'], H, W, focal) \
-                                + compute_sf_sm_loss(ret['raw_pts_ref'], ret['raw_pts_prev'], H, W, focal))
+        sf_sm_loss = args.w_sm * (compute_sf_sm_loss(ret['raw_pts_ref'], 
+                                                    ret['raw_pts_post'], 
+                                                    H, W, focal) \
+                                + compute_sf_sm_loss(ret['raw_pts_ref'], 
+                                                    ret['raw_pts_prev'], 
+                                                    H, W, focal))
 
         # scene flow least kinectic loss
-        sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_ref'], ret['raw_pts_post'], ret['raw_pts_prev'], H, W, focal)
-        sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_ref'], ret['raw_pts_post'], ret['raw_pts_prev'], H, W, focal)
+        sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_ref'], 
+                                                    ret['raw_pts_post'], 
+                                                    ret['raw_pts_prev'], 
+                                                    H, W, focal)
+        sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_ref'], 
+                                                    ret['raw_pts_post'], 
+                                                    ret['raw_pts_prev'], 
+                                                    H, W, focal)
 
         # ======================================  two-frames chain loss
         if chain_bwd:
-            sf_sm_loss += args.w_sm * compute_sf_sm_loss(ret['raw_pts_prev'], ret['raw_pts_pp'], 
+            sf_sm_loss += args.w_sm * compute_sf_sm_loss(ret['raw_pts_prev'], 
+                                                        ret['raw_pts_pp'], 
                                                         H, W, focal)
             sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_prev'], 
                                                           ret['raw_pts_ref'], 
@@ -537,8 +574,10 @@ def train():
                                                           H, W, focal)
 
         else:
-            sf_sm_loss += args.w_sm * compute_sf_sm_loss(ret['raw_pts_post'], ret['raw_pts_pp'], 
+            sf_sm_loss += args.w_sm * compute_sf_sm_loss(ret['raw_pts_post'], 
+                                                        ret['raw_pts_pp'], 
                                                         H, W, focal)
+
             sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_post'], 
                                                           ret['raw_pts_pp'], 
                                                           ret['raw_pts_ref'], 
@@ -561,8 +600,12 @@ def train():
 
         loss = sf_reg_loss + sf_cycle_loss + render_loss + flow_loss + sf_sm_loss + prob_reg_loss + depth_loss 
 
-        print('render_loss ', render_loss.item(), ' bidirection_loss ', sf_cycle_loss.item(), ' sf_reg_loss ', sf_reg_loss.item())
-        print('depth_loss ', depth_loss.item(), ' flow_loss ', flow_loss.item(), ' sf_sm_loss ', sf_sm_loss.item())
+        print('render_loss ', render_loss.item(), 
+            ' bidirection_loss ', sf_cycle_loss.item(), 
+            ' sf_reg_loss ', sf_reg_loss.item())
+        print('depth_loss ', depth_loss.item(), 
+            ' flow_loss ', flow_loss.item(), 
+            ' sf_sm_loss ', sf_sm_loss.item())
         print('prob_reg_loss ', prob_reg_loss.item())
         loss.backward()
         optimizer.step()
@@ -627,17 +670,59 @@ def train():
 
             img_idx_embed = img_i/num_img * 2. - 1.0
 
+            if img_i == 0:
+                flow_fwd, fwd_mask = read_optical_flow(args.datadir, img_i, 
+                                                    args.start_frame, fwd=True)
+                flow_bwd, bwd_mask = np.zeros_like(flow_fwd), np.zeros_like(fwd_mask)
+            elif img_i == num_img - 1:
+                flow_bwd, bwd_mask = read_optical_flow(args.datadir, img_i, 
+                                                    args.start_frame, fwd=False)
+                flow_fwd, fwd_mask = np.zeros_like(flow_bwd), np.zeros_like(bwd_mask)
+            else:
+                flow_fwd, fwd_mask = read_optical_flow(args.datadir, 
+                                                    img_i, args.start_frame, 
+                                                    fwd=True)
+                flow_bwd, bwd_mask = read_optical_flow(args.datadir, 
+                                                    img_i, args.start_frame, 
+                                                    fwd=False)
+
+            flow_fwd_rgb = torch.Tensor(flow_to_image(flow_fwd)/255.)#.cuda()
+            writer.add_image("val/gt_flow_fwd", 
+                            flow_fwd_rgb, global_step=i, dataformats='HWC')
+            flow_bwd_rgb = torch.Tensor(flow_to_image(flow_bwd)/255.)#.cuda()
+            writer.add_image("val/gt_flow_bwd", 
+                            flow_bwd_rgb, global_step=i, dataformats='HWC')
+
             with torch.no_grad():
                 ret = render(img_idx_embed, chain_bwd, False,
                              num_img, H, W, focal, 
                              chunk=1024*16, c2w=pose,
-                             **render_kwargs_test)
+                             **render_kwargs_train)
 
-                writer.add_image("val/rgb_map_ref", torch.clamp(ret['rgb_map_ref'], 0., 1.), global_step=i, dataformats='HWC')
-                writer.add_image("val/depth_map_ref", normalize_depth(ret['depth_map_ref']), global_step=i, dataformats='HW')
+                pose_post = poses[min(img_i + 1, int(num_img) - 1), :3,:4]
+                pose_prev = poses[max(img_i - 1, 0), :3,:4]
+                render_of_fwd, render_of_bwd = compute_optical_flow(pose_post, pose, pose_prev, 
+                                                                    H, W, focal, ret, n_dim=2)
+
+                render_flow_fwd_rgb = torch.Tensor(flow_to_image(render_of_fwd.cpu().numpy())/255.)#.cuda()
+                render_flow_bwd_rgb = torch.Tensor(flow_to_image(render_of_bwd.cpu().numpy())/255.)#.cuda()
+                
+                writer.add_image("val/rgb_map_ref", torch.clamp(ret['rgb_map_ref'], 0., 1.), 
+                                global_step=i, dataformats='HWC')
+                writer.add_image("val/depth_map_ref", normalize_depth(ret['depth_map_ref']), 
+                                global_step=i, dataformats='HW')
                
-                writer.add_image("val/gt_rgb", target, global_step=i, dataformats='HWC')
-                writer.add_image("val/monocular_disp", torch.clamp(target_depth /percentile(target_depth, 97), 0., 1.), global_step=i, dataformats='HW')
+                writer.add_image("val/gt_rgb", target, 
+                                global_step=i, dataformats='HWC')
+                writer.add_image("val/monocular_disp", 
+                                torch.clamp(target_depth /percentile(target_depth, 97), 0., 1.), 
+                                global_step=i, dataformats='HW')
+
+                writer.add_image("val/render_flow_fwd_rgb", render_flow_fwd_rgb, 
+                                global_step=i, dataformats='HWC')
+                writer.add_image("val/render_flow_bwd_rgb", render_flow_bwd_rgb, 
+                                global_step=i, dataformats='HWC')
+
 
             # torch.cuda.empty_cache()
 
