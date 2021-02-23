@@ -97,6 +97,7 @@ The code is based on implementation of several prior work:
 
 * https://github.com/sniklaus/softmax-splatting
 * https://github.com/yenchenlin/nerf-pytorch
+* https://github.com/JKOK005/dVRK-Linear-Interpolator-
 * https://github.com/richzhang/PerceptualSimilarity
 * https://github.com/intel-isl/MiDaS
 * https://github.com/princeton-vl/RAFT
