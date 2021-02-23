@@ -1,8 +1,0 @@
-*.pyc
-*.egg-info
-dist
-datasets
-pytorch_env
-models
-build
-correlation.egg-info
