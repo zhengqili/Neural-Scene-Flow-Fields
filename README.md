@@ -40,7 +40,7 @@ Set datadir in config/config_kid-running.txt to the root directory of input vide
    cd nsff_exp
 ```
 
-2. Rendering with fixed time, viewpoint interpolation
+2. Rendering of fixed time, viewpoint interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_bt --target_idx 10
 ```
@@ -48,7 +48,7 @@ Set datadir in config/config_kid-running.txt to the root directory of input vide
 By running the example command, you should get the following result:
 ![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/vi.gif)
 
-3. Rendering with fixed viewpoint, time interpolation
+3. Rendering of fixed viewpoint, time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_lockcam_slowmo --target_idx 5
 ```
@@ -56,7 +56,7 @@ By running the example command, you should get the following result:
 By running the example command, you should get the following result:
 ![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/ti.gif)
 
-4. Rendering with space-time interpolation
+4. Rendering of space-time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_slowmo_bt  --target_idx 10
 ```
