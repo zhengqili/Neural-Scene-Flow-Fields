@@ -220,14 +220,14 @@ def get_rays(H, W, focal, c2w):
     return rays_o, rays_d
 
 
-def get_rays_np(H, W, focal, c2w):
-    i, j = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32), indexing='xy')
-    dirs = np.stack([(i-W*.5)/focal, -(j-H*.5)/focal, -np.ones_like(i)], -1)
-    # Rotate ray directions from camera frame to the world frame
-    rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
-    # Translate camera frame's origin to the world frame. It is the origin of all rays.
-    rays_o = np.broadcast_to(c2w[:3,-1], np.shape(rays_d))
-    return rays_o, rays_d
+# def get_rays_np(H, W, focal, c2w):
+#     i, j = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32), indexing='xy')
+#     dirs = np.stack([(i-W*.5)/focal, -(j-H*.5)/focal, -np.ones_like(i)], -1)
+#     # Rotate ray directions from camera frame to the world frame
+#     rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
+#     # Translate camera frame's origin to the world frame. It is the origin of all rays.
+#     rays_o = np.broadcast_to(c2w[:3,-1], np.shape(rays_d))
+#     return rays_o, rays_d
 
 
 def ndc_rays(H, W, focal, near, rays_o, rays_d):
@@ -251,51 +251,51 @@ def ndc_rays(H, W, focal, near, rays_o, rays_d):
     return rays_o, rays_d
 
 
-# Hierarchical sampling (section 5.2)
-def sample_pdf(bins, weights, N_samples, det=False, pytest=False):
-    # Get pdf
-    weights = weights + 1e-5 # prevent nans
-    pdf = weights / torch.sum(weights, -1, keepdim=True)
-    cdf = torch.cumsum(pdf, -1)
-    cdf = torch.cat([torch.zeros_like(cdf[...,:1]), cdf], -1)  # (batch, len(bins))
+# # Hierarchical sampling (section 5.2)
+# def sample_pdf(bins, weights, N_samples, det=False, pytest=False):
+#     # Get pdf
+#     weights = weights + 1e-5 # prevent nans
+#     pdf = weights / torch.sum(weights, -1, keepdim=True)
+#     cdf = torch.cumsum(pdf, -1)
+#     cdf = torch.cat([torch.zeros_like(cdf[...,:1]), cdf], -1)  # (batch, len(bins))
 
-    # Take uniform samples
-    if det:
-        u = torch.linspace(0., 1., steps=N_samples)
-        u = u.expand(list(cdf.shape[:-1]) + [N_samples])
-    else:
-        u = torch.rand(list(cdf.shape[:-1]) + [N_samples])
+#     # Take uniform samples
+#     if det:
+#         u = torch.linspace(0., 1., steps=N_samples)
+#         u = u.expand(list(cdf.shape[:-1]) + [N_samples])
+#     else:
+#         u = torch.rand(list(cdf.shape[:-1]) + [N_samples])
 
-    # Pytest, overwrite u with numpy's fixed random numbers
-    if pytest:
-        np.random.seed(0)
-        new_shape = list(cdf.shape[:-1]) + [N_samples]
-        if det:
-            u = np.linspace(0., 1., N_samples)
-            u = np.broadcast_to(u, new_shape)
-        else:
-            u = np.random.rand(*new_shape)
-        u = torch.Tensor(u)
+#     # Pytest, overwrite u with numpy's fixed random numbers
+#     if pytest:
+#         np.random.seed(0)
+#         new_shape = list(cdf.shape[:-1]) + [N_samples]
+#         if det:
+#             u = np.linspace(0., 1., N_samples)
+#             u = np.broadcast_to(u, new_shape)
+#         else:
+#             u = np.random.rand(*new_shape)
+#         u = torch.Tensor(u)
 
-    # Invert CDF
-    u = u.contiguous()
-    inds = searchsorted(cdf, u, side='right')
-    below = torch.max(torch.zeros_like(inds-1), inds-1)
-    above = torch.min((cdf.shape[-1]-1) * torch.ones_like(inds), inds)
-    inds_g = torch.stack([below, above], -1)  # (batch, N_samples, 2)
+#     # Invert CDF
+#     u = u.contiguous()
+#     inds = searchsorted(cdf, u, side='right')
+#     below = torch.max(torch.zeros_like(inds-1), inds-1)
+#     above = torch.min((cdf.shape[-1]-1) * torch.ones_like(inds), inds)
+#     inds_g = torch.stack([below, above], -1)  # (batch, N_samples, 2)
 
-    # cdf_g = tf.gather(cdf, inds_g, axis=-1, batch_dims=len(inds_g.shape)-2)
-    # bins_g = tf.gather(bins, inds_g, axis=-1, batch_dims=len(inds_g.shape)-2)
-    matched_shape = [inds_g.shape[0], inds_g.shape[1], cdf.shape[-1]]
-    cdf_g = torch.gather(cdf.unsqueeze(1).expand(matched_shape), 2, inds_g)
-    bins_g = torch.gather(bins.unsqueeze(1).expand(matched_shape), 2, inds_g)
+#     # cdf_g = tf.gather(cdf, inds_g, axis=-1, batch_dims=len(inds_g.shape)-2)
+#     # bins_g = tf.gather(bins, inds_g, axis=-1, batch_dims=len(inds_g.shape)-2)
+#     matched_shape = [inds_g.shape[0], inds_g.shape[1], cdf.shape[-1]]
+#     cdf_g = torch.gather(cdf.unsqueeze(1).expand(matched_shape), 2, inds_g)
+#     bins_g = torch.gather(bins.unsqueeze(1).expand(matched_shape), 2, inds_g)
 
-    denom = (cdf_g[...,1]-cdf_g[...,0])
-    denom = torch.where(denom<1e-5, torch.ones_like(denom), denom)
-    t = (u-cdf_g[...,0])/denom
-    samples = bins_g[...,0] + t * (bins_g[...,1]-bins_g[...,0])
+#     denom = (cdf_g[...,1]-cdf_g[...,0])
+#     denom = torch.where(denom<1e-5, torch.ones_like(denom), denom)
+#     t = (u-cdf_g[...,0])/denom
+#     samples = bins_g[...,0] + t * (bins_g[...,1]-bins_g[...,0])
 
-    return samples
+#     return samples
 
 
 
@@ -337,22 +337,22 @@ def compute_mae(pred, gt, mask, dim=2):
     return torch.sum( torch.abs(pred - gt) * mask_rep )/ num_pix
 
 
-def compute_depth_loss_mask(pred_depth, gt_depth, mask): 
+# def compute_depth_loss_mask(pred_depth, gt_depth, mask): 
 
-    mask = torch.squeeze(mask)
+#     mask = torch.squeeze(mask)
 
-    t_pred = torch.median(pred_depth)
-    s_pred = torch.mean(torch.abs(pred_depth - t_pred))
+#     t_pred = torch.median(pred_depth)
+#     s_pred = torch.mean(torch.abs(pred_depth - t_pred))
 
-    t_gt = torch.median(gt_depth)
-    s_gt = torch.mean(torch.abs(gt_depth - t_gt))
+#     t_gt = torch.median(gt_depth)
+#     s_gt = torch.mean(torch.abs(gt_depth - t_gt))
 
-    pred_depth_n = (pred_depth - t_pred)/s_pred
-    gt_depth_n = (gt_depth - t_gt)/s_gt
+#     pred_depth_n = (pred_depth - t_pred)/s_pred
+#     gt_depth_n = (gt_depth - t_gt)/s_gt
 
-    num_pixe = torch.sum(mask) + 1e-8
+#     num_pixe = torch.sum(mask) + 1e-8
 
-    return torch.sum(torch.abs(pred_depth_n - gt_depth_n) * mask)/num_pixe
+#     return torch.sum(torch.abs(pred_depth_n - gt_depth_n) * mask)/num_pixe
 
 
 def normalize_depth(depth):

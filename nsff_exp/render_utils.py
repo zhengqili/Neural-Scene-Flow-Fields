@@ -355,65 +355,6 @@ def batchify_rays_sm(img_idx, chain_bwd, chain_5frames,
     
     return all_ret
 
-def raw2rgba(raw, z_vals, rays_d, raw_noise_std=0):
-    """Transforms model's predictions to semantically meaningful values.
-    Args:
-        raw: [num_rays, num_samples along ray, 4]. Prediction from model.
-        z_vals: [num_rays, num_samples along ray]. Integration time.
-        rays_d: [num_rays, 3]. Direction of each ray.
-    Returns:
-        rgb_map: [num_rays, 3]. Estimated RGB color of a ray.
-        disp_map: [num_rays]. Disparity map. Inverse of depth map.
-        acc_map: [num_rays]. Sum of weights along each ray.
-        weights: [num_rays, num_samples]. Weights assigned to each sampled color.
-        depth_map: [num_rays]. Estimated distance to object.
-    """
-    raw2alpha = lambda raw, dists, act_fn=F.relu: 1.-torch.exp(-act_fn(raw)*dists)
-
-    dists = z_vals[...,1:] - z_vals[...,:-1]
-    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
-
-    dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
-
-    rgb = torch.sigmoid(raw[...,:3])  # [N_rays, N_samples, 3]
-    noise = 0.
-
-    if raw_noise_std > 0.:
-        noise = torch.randn(raw[...,3].shape) * raw_noise_std
-
-    alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
-
-    return rgb, alpha
-
-def raw2rgba_blend(raw, raw_blend_w, z_vals, rays_d, raw_noise_std=0):
-    """Transforms model's predictions to semantically meaningful values.
-    Args:
-        raw: [num_rays, num_samples along ray, 4]. Prediction from model.
-        z_vals: [num_rays, num_samples along ray]. Integration time.
-        rays_d: [num_rays, 3]. Direction of each ray.
-    Returns:
-        rgb_map: [num_rays, 3]. Estimated RGB color of a ray.
-        disp_map: [num_rays]. Disparity map. Inverse of depth map.
-        acc_map: [num_rays]. Sum of weights along each ray.
-        weights: [num_rays, num_samples]. Weights assigned to each sampled color.
-        depth_map: [num_rays]. Estimated distance to object.
-    """
-    raw2alpha = lambda raw, dists, act_fn=F.relu: 1.-torch.exp(-act_fn(raw)*dists)
-
-    dists = z_vals[...,1:] - z_vals[...,:-1]
-    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
-
-    dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
-
-    rgb = torch.sigmoid(raw[...,:3])  # [N_rays, N_samples, 3]
-    noise = 0.
-
-    if raw_noise_std > 0.:
-        noise = torch.randn(raw[...,3].shape) * raw_noise_std
-
-    alpha = raw2alpha(raw[...,3] + noise, dists) * (1. - raw_blend_w)  # [N_rays, N_samples]
-
-    return rgb, alpha
 
 def raw2rgba_blend_slowmo(raw, raw_blend_w, z_vals, rays_d, raw_noise_std=0):
     """Transforms model's predictions to semantically meaningful values.
@@ -674,52 +615,6 @@ def render(img_idx, chain_bwd, chain_5frames,
     # return ret_list + [ret_dict]
     return all_ret
 
-def get_points_single_image(H, W, focal, depth, c2w):
-    '''
-    :param H: image height
-    :param W: image width
-    :param intrinsics: 4 by 4 intrinsic matrix
-    :param c2w: 4 by 4 camera to world extrinsic matrix
-    :return:
-    '''
-
-    # intrinsics = np.eye(3)
-    # intrinsics[0, 0] = intrinsics[1, 1] = focal
-    # intrinsics[0, 2] = W/2. 
-    # intrinsics[1, 2] = H/2.
-
-    # u, v = np.meshgrid(np.arange(W), np.arange(H))
-
-    # u = u.reshape(-1).astype(dtype=np.float32) #+ 0.5    # add half pixel
-    # v = v.reshape(-1).astype(dtype=np.float32) #+ 0.5
-    # pixels = np.stack((u, v, np.ones_like(u)), axis=0)  # (3, H*W)
-
-    # rays_d = np.dot(np.linalg.inv(intrinsics[:3, :3]), pixels)
-    # # rays_d = np.dot(c2w[:3, :3], rays_d)  # (3, H*W)
-    # rays_d = rays_d.transpose((1, 0))  # (H*W, 3)
-    # rays_d = rays_d.reshape((H, W, 3))
-
-    i, j = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32), indexing='xy')
-    rays_d = np.stack([(i-W*.5)/focal, -(j-H*.5)/focal, -np.ones_like(i)], -1)
-    # Rotate ray directions from camera frame to the world frame
-    # rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
-
-    # print('rays_d ', rays_d.shape)
-    # sys.exit()  
-
-    points_3d = rays_d * depth[..., np.newaxis]
-
-    points_3d_flat = points_3d.reshape((-1, 3))
-
-    points_3d_flat_g = np.dot(c2w[:3, :3], points_3d_flat.T) + c2w[:3, 3:]
-
-    points_3d_G = points_3d_flat_g.T.reshape((H, W, 3))
-    # go back to colmap format 
-    points_3d_G[:, :, 1] = -points_3d_G[:, :, 1]
-    points_3d_G[:, :, 2] = -points_3d_G[:, :, 2]
-
-    return points_3d_G
-
 
 def render_bullet_time(render_poses, img_idx_embed, num_img, 
                     hwf, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
@@ -770,45 +665,6 @@ def render_bullet_time(render_poses, img_idx_embed, num_img,
 
             # filename = os.path.join(save_depth_dir, '{:03d}.jpg'.format(i))
             # imageio.imwrite(filename, depth8)
-
-
-# def render_dynamics(ref_c2w, num_img, 
-#                     hwf, chunk, render_kwargs, 
-#                     gt_imgs=None, savedir=None, render_factor=0):
-
-#     H, W, focal = hwf
-
-#     if render_factor!=0:
-#         # Render downsampled for speed
-#         H = H//render_factor
-#         W = W//render_factor
-#         focal = focal/render_factor
-
-#     t = time.time()
-
-#     for i in range(2, int(num_img)-2):
-#         print(i, time.time() - t)
-#         t = time.time()
-
-#         img_idx_embed = i/float(num_img) * 2. - 1.0
-
-#         ret = render(img_idx_embed, num_img, 
-#                      H, W, focal, 
-#                      chunk=1024*32, c2w=ref_c2w[:3,:4], 
-#                      **render_kwargs)
-
-#         depth = torch.clamp(ret['depth_map_ref']/percentile(ret['depth_map_ref'], 97), 0., 1.)  #1./disp
-#         rgb = ret['rgb_map_ref'].cpu().numpy()
-
-#         # if savedir is not None:
-#         rgb8 = to8b(rgb)
-#         depth8 = to8b(depth.unsqueeze(-1).repeat(1, 1, 3).cpu().numpy())
-
-#         render_rgb = np.concatenate((rgb8, depth8), 1)
-
-#         filename = os.path.join(savedir, '{:03d}.jpg'.format(i))
-#         imageio.imwrite(filename, render_rgb)
-
 
 def create_nerf(args):
     """Instantiate NeRF's MLP model.

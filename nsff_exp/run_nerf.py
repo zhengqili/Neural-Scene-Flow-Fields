@@ -162,14 +162,15 @@ def train():
     # Load data
     if args.dataset_type == 'llff':
         target_idx = args.target_idx
-        images, depths, masks, poses, bds, render_poses, ref_c2w, motion_coords = load_llff_data(args.datadir, 
-                                                                                         args.start_frame, args.end_frame,
-                                                                                         args.factor,
-                                                                                         target_idx=target_idx,
-                                                                                         recenter=True, bd_factor=.9,
-                                                                                         spherify=args.spherify, 
-                                                                                         ndc_depth=args.ndc_depth,
-                                                                                         final_height=args.final_height)
+        images, depths, masks, poses, bds, \
+        render_poses, ref_c2w, motion_coords = load_llff_data(args.datadir, 
+                                                            args.start_frame, args.end_frame,
+                                                            args.factor,
+                                                            target_idx=target_idx,
+                                                            recenter=True, bd_factor=.9,
+                                                            spherify=args.spherify, 
+                                                            ndc_depth=args.ndc_depth,
+                                                            final_height=args.final_height)
 
         hwf = poses[0,:3,-1]
         poses = poses[:,:3,:4]

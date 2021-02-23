@@ -193,9 +193,6 @@ def viewmatrix(z, up, pos):
     m = np.stack([vec0, vec1, vec2, pos], 1)
     return m
 
-def ptstocam(pts, c2w):
-    tt = np.matmul(c2w[:3,:3].T, (pts-c2w[:3,3])[...,np.newaxis])[...,0]
-    return tt
 
 def poses_avg(poses):
 

@@ -110,6 +110,7 @@ def run(basedir, input_path, output_path, model_path, resize_height=288):
     # select device
     device = torch.device("cuda")
     print("device: %s" % device)
+    # sys.exit()
 
     small_img_dir = input_path + '_*x288/'
     print(small_img_dir)

@@ -3,8 +3,8 @@ import numpy as np
 import os
 import sys
 
+
 def load_colmap_data(realdir):
-    
     camerasfile = os.path.join(realdir, 'sparse/cameras.bin')
     camdata = read_model.read_cameras_binary(camerasfile)
     
@@ -79,41 +79,7 @@ def load_colmap_data(realdir):
     print(save_arr.shape)
     np.save(os.path.join(realdir, 'poses_bounds.npy'), save_arr)
 
-
-def save_poses(basedir, poses, pts3d, perm):
-    pts_arr = []
-    vis_arr = []
-    for k in pts3d:
-        pts_arr.append(pts3d[k].xyz)
-        cams = [0] * poses.shape[-1]
-        for ind in pts3d[k].image_ids:
-            if len(cams) < ind - 1:
-                print('ERROR: the correct camera poses for current points cannot be accessed')
-                return
-            cams[ind-1] = 1
-        vis_arr.append(cams)
-
-    pts_arr = np.array(pts_arr)
-    vis_arr = np.array(vis_arr)
-    print( 'Points', pts_arr.shape, 'Visibility', vis_arr.shape )
     
-    zvals = np.sum(-(pts_arr[:, np.newaxis, :].transpose([2,0,1]) - poses[:3, 3:4, :]) * poses[:3, 2:3, :], 0)
-    valid_z = zvals[vis_arr==1]
-    print( 'Depth stats', valid_z.min(), valid_z.max(), valid_z.mean() )
-    
-    save_arr = []
-    for i in perm:
-        vis = vis_arr[:, i]
-        zs = zvals[:, i]
-        zs = zs[vis==1]
-        close_depth, inf_depth = np.percentile(zs, 5), np.percentile(zs, 95)
-        print( i, close_depth, inf_depth )
-    
-        save_arr.append(np.concatenate([poses[..., i].ravel(), np.array([close_depth, inf_depth])], 0))
-    save_arr = np.array(save_arr)
-    
-    np.save(os.path.join(basedir, 'poses_bounds.npy'), save_arr)
-
 import argparse
 
 if __name__=='__main__':
