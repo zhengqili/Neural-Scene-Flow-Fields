@@ -1,3 +1,6 @@
 [submodule "RAFT"]
 	path = RAFT
 	url = https://github.com/princeton-vl/RAFT
+[submodule "nsff_scripts/RAFT"]
+	path = nsff_scripts/RAFT
+	url = https://github.com/princeton-vl/RAFT
