@@ -1,24 +1,18 @@
 import os, sys
 import numpy as np
-# import json
 import random
 import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# from torch.utils.tensorboard import SummaryWriter
 import models
 import cv2
 
-# import matplotlib
-# matplotlib.use('Agg')
-# import matplotlib.pyplot as plt
 import math
-
 from render_utils import *
 from run_nerf_helpers import *
 
-from load_llff import load_llff_data_eval
+from load_llff import load_nvidia_data
 import skimage.measure
 from skimage.metrics import structural_similarity
 
@@ -45,13 +39,13 @@ def config_parser():
     parser.add_argument("--datadir", type=str, default='./data/llff/fern',
 
                         help='input data directory')
-    parser.add_argument("--render_dynamics_slowmo", action='store_true', 
+    parser.add_argument("--render_lockcam_slowmo", action='store_true', 
                         help='render fixed view + slowmo')
     parser.add_argument("--render_slowmo_bt", action='store_true', 
                         help='render space-time interpolation')
 
     parser.add_argument("--final_height", type=int, default=288, 
-                        help='training image height, default is 288x512')
+                        help='training image height, default is 512x288')
     # training options
     parser.add_argument("--netdepth", type=int, default=8, 
                         help='layers in network')
@@ -96,12 +90,8 @@ def config_parser():
     parser.add_argument("--raw_noise_std", type=float, default=0., 
                         help='std dev of noise added to regularize sigma_a output, 1e0 recommended')
 
-    parser.add_argument("--render_paths", action='store_true', 
-                        help='do not optimize, reload weights and render out render_poses path')
-
     parser.add_argument("--render_bt", action='store_true', 
                         help='render bullet time')
-
     parser.add_argument("--render_test", action='store_true', 
                         help='do not optimize, reload weights and render out render_poses path')
     parser.add_argument("--render_factor", type=int, default=0, 
@@ -112,11 +102,6 @@ def config_parser():
                         help='options: llff / blender / deepvoxels')
     parser.add_argument("--testskip", type=int, default=8, 
                         help='will load 1/N images from test/val sets, useful for large datasets like deepvoxels')
-
-    ## deepvoxels flags
-    # parser.add_argument("--shape", type=str, default='greek', 
-                        # help='options : armchair / cube / greek / vase')
-
     ## blender flags
     parser.add_argument("--white_bkgd", action='store_true', 
                         help='set to render synthetic data on a white bkgd (always use for dvoxels)')
@@ -125,7 +110,8 @@ def config_parser():
     parser.add_argument("--factor", type=int, default=8, 
                         help='downsample factor for LLFF images')
     parser.add_argument("--no_ndc", action='store_true', 
-                        help='do not use normalized device coordinates (set for non-forward facing scenes)')
+                        help='do not use normalized device coordinates (set for non-forward facing scenes), \
+                              Currently only support NDC reconstruction for forward facing scenes')
     parser.add_argument("--lindisp", action='store_true', 
                         help='sampling linearly in disparity rather than depth')
     parser.add_argument("--spherify", action='store_true', 
@@ -143,15 +129,13 @@ def config_parser():
                         help='use motion segmentation mask for hard-mining data-driven initialization')
     parser.add_argument("--decay_optical_flow_w", action='store_true', 
                         help='decay optical flow weights')
-    parser.add_argument("--ndc_depth", action='store_true', 
-                        help='reconstruction MUST be ndc space')
     parser.add_argument("--w_depth",   type=float, default=0.04, 
-                        help='weights of depth')
+                        help='weights of depth loss')
     parser.add_argument("--w_optical_flow", type=float, default=0.02, 
-                        help='weights of optical flow')
+                        help='weights of optical flow loss')
     parser.add_argument("--w_sm", type=float, default=0.1, 
                         help='weights of scene flow smoothness')
-    parser.add_argument("--w_sf_reg", type=float, default=0.1, 
+    parser.add_argument("--w_sf_reg", type=float, default=0.01, 
                         help='weights of scene flow regularization')
     parser.add_argument("--w_cycle", type=float, default=0.1, 
                         help='weights of cycle consistency')
@@ -213,14 +197,14 @@ def evaluation():
     # Load data
     if args.dataset_type == 'llff':
         target_idx = args.target_idx
-        images, poses, bds, render_poses, ref_c2w = load_llff_data_eval(args.datadir, 
-                                                                     args.start_frame, args.end_frame,
-                                                                     args.factor,
-                                                                     target_idx=target_idx,
-                                                                     recenter=True, bd_factor=.9,
-                                                                     spherify=args.spherify, 
-                                                                     ndc_depth=args.ndc_depth,
-                                                                     final_height=args.final_height)
+        images, poses, bds, render_poses = load_nvidia_data(args.datadir, 
+                                                            args.start_frame, args.end_frame,
+                                                            args.factor,
+                                                            target_idx=target_idx,
+                                                            recenter=True, bd_factor=.9,
+                                                            spherify=args.spherify, 
+                                                            final_height=args.final_height)
+
 
         hwf = poses[0,:3,-1]
         poses = poses[:,:3,:4]
@@ -252,7 +236,8 @@ def evaluation():
 
     # Create log dir and copy the config file
     basedir = args.basedir
-    args.expname = args.expname + '_F%02d-%02d'%(args.start_frame, args.end_frame)
+    args.expname = args.expname + '_F%02d-%02d'%(args.start_frame, 
+                                                 args.end_frame)
     expname = args.expname
 
     os.makedirs(os.path.join(basedir, expname), exist_ok=True)
@@ -267,7 +252,9 @@ def evaluation():
             file.write(open(args.config, 'r').read())
 
     # Create nerf model
-    render_kwargs_train, render_kwargs_test, start, grad_vars, optimizer = create_nerf(args)
+    render_kwargs_train, render_kwargs_test, \
+        start, grad_vars, optimizer = create_nerf(args)
+
     global_step = start
 
     bds_dict = {
@@ -283,7 +270,7 @@ def evaluation():
     with torch.no_grad():
 
         model = models.PerceptualLoss(model='net-lin',net='alex',
-                                    use_gpu=True,version=0.1)
+                                      use_gpu=True,version=0.1)
 
         total_psnr = 0.
         total_ssim = 0.
@@ -317,14 +304,21 @@ def evaluation():
 
                 rgb = ret['rgb_map_ref'].cpu().numpy()#.append(ret['rgb_map_ref'].cpu().numpy())
 
-                gt_img_path = os.path.join(args.datadir, 'mv_images', '%05d'%img_i, 'cam%02d.jpg'%(camera_i + 1))
+                gt_img_path = os.path.join(args.datadir, 
+                                        'mv_images', 
+                                        '%05d'%img_i, 
+                                        'cam%02d.jpg'%(camera_i + 1))
+
                 # print('gt_img_path ', gt_img_path)
                 gt_img = cv2.imread(gt_img_path)[:, :, ::-1]
-                gt_img = cv2.resize(gt_img, dsize=(rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_AREA)
+                gt_img = cv2.resize(gt_img, 
+                                    dsize=(rgb.shape[1], rgb.shape[0]), 
+                                    interpolation=cv2.INTER_AREA)
                 gt_img = np.float32(gt_img) / 255
 
                 psnr = skimage.measure.compare_psnr(gt_img, rgb)
-                ssim = skimage.measure.compare_ssim(gt_img, rgb, multichannel=True)
+                ssim = skimage.measure.compare_ssim(gt_img, rgb, 
+                                                    multichannel=True)
 
                 gt_img_0 = im2tensor(gt_img).cuda()
                 rgb_0 = im2tensor(rgb).cuda()
@@ -338,18 +332,28 @@ def evaluation():
                 total_lpips += lpips
                 count += 1
 
-                dynamic_mask_path = os.path.join(args.datadir, 'mv_masks', '%05d'%img_i, 'cam%02d.png'%(camera_i + 1))     
+                dynamic_mask_path = os.path.join(args.datadir, 
+                                                'mv_masks', 
+                                                '%05d'%img_i, 
+                                                'cam%02d.png'%(camera_i + 1))     
                 print(dynamic_mask_path)
                 dynamic_mask = np.float32(cv2.imread(dynamic_mask_path) > 1e-3)#/255.
-                dynamic_mask = cv2.resize(dynamic_mask, dsize=(rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_NEAREST)
+                dynamic_mask = cv2.resize(dynamic_mask, 
+                                        dsize=(rgb.shape[1], rgb.shape[0]), 
+                                        interpolation=cv2.INTER_NEAREST)
 
                 dynamic_mask_0 = torch.Tensor(dynamic_mask[:, :, :, np.newaxis].transpose((3, 2, 0, 1)))
 
-                dynamic_ssim = calculate_ssim(gt_img, rgb, dynamic_mask)
-                dynamic_psnr = calculate_psnr(gt_img, rgb, dynamic_mask)
-                dynamic_lpips = model.forward(gt_img_0, rgb_0, dynamic_mask_0).item()
+                dynamic_ssim = calculate_ssim(gt_img, 
+                                              rgb, 
+                                              dynamic_mask)
+                dynamic_psnr = calculate_psnr(gt_img, 
+                                              rgb, 
+                                              dynamic_mask)
 
-                # print(dynamic_psnr, dynamic_ssim, dynamic_lpips)
+                dynamic_lpips = model.forward(gt_img_0, 
+                                              rgb_0, 
+                                              dynamic_mask_0).item()
 
                 total_psnr_dy += dynamic_psnr
                 total_ssim_dy += dynamic_ssim

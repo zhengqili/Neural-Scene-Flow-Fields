@@ -36,7 +36,7 @@ def config_parser():
                         help='render space-time interpolation')
 
     parser.add_argument("--final_height", type=int, default=288, 
-                        help='training image height, default is 288x512')
+                        help='training image height, default is 512x288')
     # training options
     parser.add_argument("--netdepth", type=int, default=8, 
                         help='layers in network')
@@ -81,9 +81,6 @@ def config_parser():
     parser.add_argument("--raw_noise_std", type=float, default=0., 
                         help='std dev of noise added to regularize sigma_a output, 1e0 recommended')
 
-    parser.add_argument("--render_paths", action='store_true', 
-                        help='do not optimize, reload weights and render out render_poses path')
-
     parser.add_argument("--render_bt", action='store_true', 
                         help='render bullet time')
 
@@ -123,8 +120,7 @@ def config_parser():
                         help='use motion segmentation mask for hard-mining data-driven initialization')
     parser.add_argument("--decay_optical_flow_w", action='store_true', 
                         help='decay optical flow weights')
-    parser.add_argument("--ndc_depth", action='store_true', 
-                        help='reconstruction only supports NDC space')
+
     parser.add_argument("--w_depth",   type=float, default=0.04, 
                         help='weights of depth loss')
     parser.add_argument("--w_optical_flow", type=float, default=0.02, 
@@ -141,7 +137,7 @@ def config_parser():
                         help='data driven priors decay iteration * 10000')
 
     parser.add_argument("--start_frame", type=int, default=0)
-    parser.add_argument("--end_frame", type=int, default=24)
+    parser.add_argument("--end_frame", type=int, default=30)
 
     # logging/saving options
     parser.add_argument("--i_print",   type=int, default=500, 
@@ -169,7 +165,6 @@ def train():
                                                             target_idx=target_idx,
                                                             recenter=True, bd_factor=.9,
                                                             spherify=args.spherify, 
-                                                            ndc_depth=args.ndc_depth,
                                                             final_height=args.final_height)
 
         hwf = poses[0,:3,-1]
