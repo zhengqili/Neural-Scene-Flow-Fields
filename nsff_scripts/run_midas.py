@@ -5,7 +5,6 @@
 import os
 import glob
 import torch
-import utils
 import cv2
 import numpy as np
 from torchvision.transforms import Compose
@@ -21,6 +20,24 @@ import matplotlib.pyplot as plt
 # RESIZE_W_1, RESIZE_H_1 = 640, 360
 VIZ = False
 
+def read_image(path):
+    """Read image and output RGB image (0-1).
+
+    Args:
+        path (str): path to file
+
+    Returns:
+        array: RGB image (0-1)
+    """
+    img = cv2.imread(path)
+
+    if img.ndim == 2:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) / 255.0
+
+    return img
+    
 def _minify(basedir, factors=[], resolutions=[]):
     '''
         Minify the images to small resolution for training
@@ -161,7 +178,7 @@ def run(basedir, input_path, output_path, model_path,
         img_name = img_names[ind]
         print("  processing {} ({}/{})".format(img_name, ind + 1, num_images))
         # input
-        img = utils.read_image(img_name)
+        img = read_image(img_name)
         img_input_1 = transform_1({"image": img})["image"]
 
         # compute
