@@ -18,7 +18,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-RESIZE_W_1, RESIZE_H_1 = 640, 360
+# RESIZE_W_1, RESIZE_H_1 = 640, 360
 VIZ = False
 
 def _minify(basedir, factors=[], resolutions=[]):
@@ -78,7 +78,10 @@ def _minify(basedir, factors=[], resolutions=[]):
             print(img.shape, r)
             # sys.exit()
 
-            cv2.imwrite(save_path, cv2.resize(img, (r[1], r[0]), interpolation=cv2.INTER_AREA))
+            cv2.imwrite(save_path, 
+                        cv2.resize(img, 
+                                (r[1], r[0]), 
+                                interpolation=cv2.INTER_AREA))
 
         if ext != 'png':
             check_output('rm {}/*.{}'.format(imgdir, ext), shell=True)
@@ -89,7 +92,8 @@ def _minify(basedir, factors=[], resolutions=[]):
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
 import imageio
 
-def run(basedir, input_path, output_path, model_path, resize_height=288):
+def run(basedir, input_path, output_path, model_path, 
+        input_w=640, input_h=360, resize_height=288):
     """Run MonoDepthNN to compute depth maps.
 
     Args:
@@ -99,7 +103,8 @@ def run(basedir, input_path, output_path, model_path, resize_height=288):
     """
     print("initialize")
 
-    img0 = [os.path.join(basedir, 'images', f) for f in sorted(os.listdir(os.path.join(basedir, 'images'))) \
+    img0 = [os.path.join(basedir, 'images', f) \
+            for f in sorted(os.listdir(os.path.join(basedir, 'images'))) \
             if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')][0]
     sh = cv2.imread(img0).shape
     height = resize_height
@@ -125,8 +130,8 @@ def run(basedir, input_path, output_path, model_path, resize_height=288):
     transform_1 = Compose(
         [
             Resize(
-                RESIZE_W_1,
-                RESIZE_H_1,
+                input_w,
+                input_h,
                 resize_target=None,
                 keep_aspect_ratio=True,
                 ensure_multiple_of=32,
@@ -204,9 +209,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str, 
                         help='COLMAP Directory')
+    parser.add_argument("--input_w", type=int, default=640,
+                        help='input image width for monocular depth network')
+    parser.add_argument("--input_h", type=int, default=360,
+                        help='input image height for monocular depth network')
     parser.add_argument("--resize_height", type=int, default=288,
-                        help='resized height for training images (width will be resized based on original aspect ratio), \
-                               default height 288')
+                        help='resized image height for training \
+                        (width will be resized based on original aspect ratio)')
 
     args = parser.parse_args()
     BASE_DIR = args.data_path
@@ -223,6 +232,7 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
 
     # compute depth maps
-    run(BASE_DIR, INPUT_PATH, OUTPUT_PATH, MODEL_PATH, args.resize_height)
+    run(BASE_DIR, INPUT_PATH, OUTPUT_PATH, MODEL_PATH, 
+        args.input_w, args.input_h, args.resize_height)
 
 

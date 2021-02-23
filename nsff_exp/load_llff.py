@@ -8,75 +8,6 @@ import cv2
 # START_FRAMES = 0
 # END_FRAMES = 24
 
-def _minify(basedir, factors=[], resolutions=[]):
-    needtoload = False
-    for r in factors:
-        imgdir = os.path.join(basedir, 'images_{}'.format(r))
-        if not os.path.exists(imgdir):
-            needtoload = True
-    for r in resolutions:
-        imgdir = os.path.join(basedir, 'images_{}x{}'.format(r[1], r[0]))
-        if not os.path.exists(imgdir):
-            needtoload = True
-    if not needtoload:
-        return
-    
-    from shutil import copy
-    from subprocess import check_output
-    import glob
-
-    imgdir = os.path.join(basedir, 'images')
-    imgs = [os.path.join(imgdir, f) for f in sorted(os.listdir(imgdir))]
-    imgs = [f for f in imgs if any([f.endswith(ex) for ex in ['JPG', 'jpg', 'png', 'jpeg', 'PNG']])]
-    imgdir_orig = imgdir
-    
-    wd = os.getcwd()
-
-    for r in factors + resolutions:
-        if isinstance(r, int):
-            name = 'images_{}'.format(r)
-            resizearg = '{}%'.format(100./r)
-        else:
-            name = 'images_{}x{}'.format(r[1], r[0])
-            resizearg = '{}x{}'.format(r[1], r[0])
-
-        imgdir = os.path.join(basedir, name)
-        if os.path.exists(imgdir):
-            continue
-            
-        print('Minifying', r, basedir)
-        
-        os.makedirs(imgdir)
-        check_output('cp {}/* {}'.format(imgdir_orig, imgdir), shell=True)
-        
-        ext = imgs[0].split('.')[-1]
-        print(ext)
-        # sys.exit()
-        img_path_list = glob.glob(os.path.join(imgdir, '*.%s'%ext))
-        
-        for img_path in img_path_list:
-            save_path = img_path.replace('.jpg', '.png')
-            img = cv2.imread(img_path)
-
-            print(img.shape, r)
-            # sys.exit()
-
-            cv2.imwrite(save_path, cv2.resize(img, (r[1], r[0]), interpolation=cv2.INTER_AREA))
-
-        # args = ' '.join(['mogrify', '-resize', resizearg, '-format', 'png', '*.{}'.format(ext)])
-        # print(args)
-        # os.chdir(imgdir)
-        # check_output(args, shell=True)
-        # os.chdir(wd)
-        
-        if ext != 'png':
-            check_output('rm {}/*.{}'.format(imgdir, ext), shell=True)
-            print('Removed duplicates')
-        print('Done')
-        # sys.exit()
-            
-        
-
 def _load_data(basedir, start_frame, end_frame, 
             factor=None, width=None, height=None, load_imgs=True, ndc_depth=True):
     print('factor ', factor)
@@ -94,19 +25,18 @@ def _load_data(basedir, start_frame, end_frame,
     
     if factor is not None:
         sfx = '_{}'.format(factor)
-        _minify(basedir, factors=[factor])
+        # _minify(basedir, factors=[factor])
         factor = factor
     elif height is not None:
         factor = sh[0] / float(height)
         width = int(round(sh[1] / factor))
         # width = int((sh[1] / factor))
-
-        _minify(basedir, resolutions=[[height, width]])
+        # _minify(basedir, resolutions=[[height, width]])
         sfx = '_{}x{}'.format(width, height)
     elif width is not None:
         factor = sh[1] / float(width)
         width = int(round(sh[0] / factor))
-        _minify(basedir, resolutions=[[height, width]])
+        # _minify(basedir, resolutions=[[height, width]])
         sfx = '_{}x{}'.format(width, height)
     else:
         factor = 1
@@ -116,11 +46,13 @@ def _load_data(basedir, start_frame, end_frame,
         print( imgdir, 'does not exist, returning' )
         return
     
-    imgfiles = [os.path.join(imgdir, f) for f in sorted(os.listdir(imgdir)) if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')]
+    imgfiles = [os.path.join(imgdir, f) for f in sorted(os.listdir(imgdir)) \
+                if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')]
     imgfiles = imgfiles[start_frame:end_frame]
 
     if poses.shape[-1] != len(imgfiles):
-        print( 'Mismatch between imgs {} and poses {} !!!!'.format(len(imgfiles), poses.shape[-1]) )
+        print( 'Mismatch between imgs {} and poses {} !!!!'.format(len(imgfiles), 
+                                                                poses.shape[-1]) )
         return
 
     sh = imageio.imread(imgfiles[0]).shape
@@ -144,15 +76,18 @@ def _load_data(basedir, start_frame, end_frame,
     else:
         disp_dir = os.path.join(basedir, 'disp')  
 
-    dispfiles = [os.path.join(disp_dir, f) for f in sorted(os.listdir(disp_dir)) if f.endswith('npy')]
+    dispfiles = [os.path.join(disp_dir, f) \
+                for f in sorted(os.listdir(disp_dir)) if f.endswith('npy')]
     dispfiles = dispfiles[start_frame:end_frame]
 
-    disp = [cv2.resize(read_MiDaS_disp(f, 3.0), (imgs.shape[1], imgs.shape[0]), 
-                        interpolation=cv2.INTER_NEAREST) for f in dispfiles]
+    disp = [cv2.resize(read_MiDaS_disp(f, 3.0), 
+                    (imgs.shape[1], imgs.shape[0]), 
+                    interpolation=cv2.INTER_NEAREST) for f in dispfiles]
     disp = np.stack(disp, -1)  
 
     mask_dir = os.path.join(basedir, 'motion_masks')
-    maskfiles = [os.path.join(mask_dir, f) for f in sorted(os.listdir(mask_dir)) if f.endswith('png')]
+    maskfiles = [os.path.join(mask_dir, f) \
+                for f in sorted(os.listdir(mask_dir)) if f.endswith('png')]
     maskfiles = maskfiles[start_frame:end_frame]
 
     masks = [cv2.resize(imread(f)/255., (imgs.shape[1], imgs.shape[0]), 
@@ -213,7 +148,12 @@ def render_path_spiral(c2w, up, rads, focal, zdelta, zrate, rots, N):
     hwf = c2w[:,4:5]
     
     for theta in np.linspace(0., 2. * np.pi * rots, N+1)[:-1]:
-        c = np.dot(c2w[:3,:4], np.array([np.cos(theta), -np.sin(theta), -np.sin(theta*zrate), 1.]) * rads) 
+        c = np.dot(c2w[:3,:4], 
+                    np.array([np.cos(theta), 
+                              -np.sin(theta), 
+                              -np.sin(theta*zrate), 
+                              1.]) * rads) 
+        
         z = normalize(c - np.dot(c2w[:3,:4], np.array([0,0,-focal, 1.])))
         render_poses.append(np.concatenate([viewmatrix(z, up, c), hwf], 1))
     return render_poses
