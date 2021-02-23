@@ -65,10 +65,15 @@ def load_colmap_data(realdir):
     c2w_mats = np.linalg.inv(w2c_mats)
 
     poses = c2w_mats[:, :3, :4].transpose([1,2,0])
-    poses = np.concatenate([poses, np.tile(hwf[..., np.newaxis], [1,1,poses.shape[-1]])], 1)
+    poses = np.concatenate([poses, np.tile(hwf[..., np.newaxis], 
+                                        [1,1,poses.shape[-1]])], 1)
 
     # must switch to [-u, r, -t] from [r, -u, t], NOT [r, u, -t]
-    poses = np.concatenate([poses[:, 1:2, :], poses[:, 0:1, :], -poses[:, 2:3, :], poses[:, 3:4, :], poses[:, 4:5, :]], 1)
+    poses = np.concatenate([poses[:, 1:2, :], 
+                            poses[:, 0:1, :], 
+                            -poses[:, 2:3, :], 
+                            poses[:, 3:4, :], 
+                            poses[:, 4:5, :]], 1)
     
     save_arr = []
 
