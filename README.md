@@ -15,7 +15,7 @@ The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependenci
 * tqdm
 
 ## Video preprocessing 
-1. Download nerf_data.zip from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing), an example input video with SfM camera poses and intrinsics estimated from [COLMAP](https://colmap.github.io/) (Note you need to use COLMAP "colmap image_undistorter" command to undistort input images to get "dense" folder as shown in the example, this dense folder should include "images" and "sparse" folder used for preprocessing).
+1. Download nerf_data.zip from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing), an example input video with SfM camera poses and intrinsics estimated from [COLMAP](https://colmap.github.io/) (Note you need to use COLMAP "colmap image_undistorter" command to undistort input images to get "dense" folder as shown in the example, this dense folder should include "images" and "sparse" folders).
 
 2. Download single view depth prediction model "model.pt" from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing), and put it on the folder "nsff_scripts".
 
@@ -28,9 +28,8 @@ The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependenci
     # Resize input images and run single view model
     python run_midas.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/" --input_w 640 --input_h 360 --resize_height 288
     # Run optical flow model (for easy setup and Pytorch version consistency, we use RAFT as backbond optical flow model, but should be easy to change to other models such as PWC-Net or FlowNet2.0)
-    cd RAFT 
     ./download_models.sh
-    python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/ --epi_threhold 1.0
+    python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/ --epi_threhold 1.0 --input_flow_w 768 --input_semantic_w 1024 --input_semantic_h 576
 ```
 
 ## Rendering from an example pretrained model
@@ -41,7 +40,7 @@ Set datadir in config/config_kid-running.txt to the root directory of input vide
    cd nsff_exp
 ```
 
-2. Rendering with fixed time, viewpoint interpolation
+2. Rendering of fixed time, viewpoint interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_bt --target_idx 10
 ```
@@ -49,7 +48,7 @@ Set datadir in config/config_kid-running.txt to the root directory of input vide
 By running the example command, you should get the following result:
 ![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/vi.gif)
 
-3. Rendering with fixed viewpoint, time interpolation
+3. Rendering of fixed viewpoint, time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_lockcam_slowmo --target_idx 5
 ```
@@ -57,7 +56,7 @@ By running the example command, you should get the following result:
 By running the example command, you should get the following result:
 ![Alt Text](https://github.com/zhengqili/Neural-Scene-Flow-Fields/blob/main/demo/ti.gif)
 
-4. Rendering with space-time interpolation
+4. Rendering of space-time interpolation
 ```bash
    python run_nerf.py --config configs/config_kid-running.txt --render_slowmo_bt  --target_idx 10
 ```
