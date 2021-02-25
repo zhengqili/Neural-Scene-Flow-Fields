@@ -50,7 +50,7 @@ By running the example command, you should get the following result:
 
 3. Rendering of fixed viewpoint, time interpolation
 ```bash
-   python run_nerf.py --config configs/config_kid-running.txt --render_lockcam_slowmo --target_idx 5
+   python run_nerf.py --config configs/config_kid-running.txt --render_lockcam_slowmo --target_idx 8
 ```
 
 By running the example command, you should get the following result:
