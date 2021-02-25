@@ -155,11 +155,17 @@ def render_slowmo_bt(disps, render_poses, bt_poses,
         z_vals = ret1['z_vals']
 
         for j in range(0, num_sample):
-            splat_alpha_dy_1, splat_rgb_dy_1, splat_alpha_rig_1, splat_rgb_rig_1 = splat_rgb_img(ret1, ratio, R_w2t, t_w2t, j, H, W, focal, True)
-            splat_alpha_dy_2, splat_rgb_dy_2, splat_alpha_rig_2, splat_rgb_rig_2 = splat_rgb_img(ret2, 1. - ratio, R_w2t, t_w2t, j, H, W, focal, False)
+            splat_alpha_dy_1, splat_rgb_dy_1, \
+            splat_alpha_rig_1, splat_rgb_rig_1 = splat_rgb_img(ret1, ratio, R_w2t, t_w2t, 
+                                                            j, H, W, focal, True)
+            splat_alpha_dy_2, splat_rgb_dy_2, \
+            splat_alpha_rig_2, splat_rgb_rig_2 = splat_rgb_img(ret2, 1. - ratio, R_w2t, t_w2t, 
+                                                            j, H, W, focal, False)
 
-            final_rgb += T_i * (splat_alpha_dy_1 * splat_rgb_dy_1 + splat_alpha_rig_1 * splat_rgb_rig_1 ) * (1.0 - ratio)
-            final_rgb += T_i * (splat_alpha_dy_2 * splat_rgb_dy_2 + splat_alpha_rig_2 * splat_rgb_rig_2 ) * ratio
+            final_rgb += T_i * (splat_alpha_dy_1 * splat_rgb_dy_1 + \
+                                splat_alpha_rig_1 * splat_rgb_rig_1 ) * (1.0 - ratio)
+            final_rgb += T_i * (splat_alpha_dy_2 * splat_rgb_dy_2 + \
+                                splat_alpha_rig_2 * splat_rgb_rig_2 ) * ratio
             # splat_alpha = splat_alpha1 * (1. - ratio) + splat_alpha2 * ratio
             # final_rgb += T_i * (splat_alpha1 * (1. - ratio) * splat_rgb1 +  splat_alpha2 * ratio * splat_rgb2)
 
@@ -212,7 +218,7 @@ def render_lockcam_slowmo(ref_c2w, num_img,
 
     count = 0
 
-    for i, cur_time in enumerate(np.linspace(target_idx - 5., target_idx + 5., 100 + 1).tolist()):
+    for i, cur_time in enumerate(np.linspace(target_idx - 8., target_idx + 8., 160 + 1).tolist()):
         ratio = cur_time - np.floor(cur_time)
 
         render_pose = ref_c2w[:3,:4] #render_poses[i % num_frame_per_cycle][:3,:4]
@@ -245,13 +251,19 @@ def render_lockcam_slowmo(ref_c2w, num_img,
         num_sample = ret1['raw_rgb'].shape[2]
 
         for j in range(0, num_sample):
-            splat_alpha_dy_1, splat_rgb_dy_1, splat_alpha_rig_1, splat_rgb_rig_1 = splat_rgb_img(ret1, ratio, R_w2t, 
-                                                                                                t_w2t, j, H, W, focal, True)
-            splat_alpha_dy_2, splat_rgb_dy_2, splat_alpha_rig_2, splat_rgb_rig_2 = splat_rgb_img(ret2, 1. - ratio, R_w2t, 
-                                                                                                t_w2t, j, H, W, focal, False)
+            splat_alpha_dy_1, splat_rgb_dy_1, \
+            splat_alpha_rig_1, splat_rgb_rig_1 = splat_rgb_img(ret1, ratio, R_w2t, 
+                                                               t_w2t, j, H, W, 
+                                                               focal, True)
+            splat_alpha_dy_2, splat_rgb_dy_2, \
+            splat_alpha_rig_2, splat_rgb_rig_2 = splat_rgb_img(ret2, 1. - ratio, R_w2t, 
+                                                               t_w2t, j, H, W, 
+                                                               focal, False)
 
-            final_rgb += T_i * (splat_alpha_dy_1 * splat_rgb_dy_1 + splat_alpha_rig_1 * splat_rgb_rig_1 ) * (1.0 - ratio)
-            final_rgb += T_i * (splat_alpha_dy_2 * splat_rgb_dy_2 + splat_alpha_rig_2 * splat_rgb_rig_2 ) * ratio
+            final_rgb += T_i * (splat_alpha_dy_1 * splat_rgb_dy_1 + \
+                                splat_alpha_rig_1 * splat_rgb_rig_1 ) * (1.0 - ratio)
+            final_rgb += T_i * (splat_alpha_dy_2 * splat_rgb_dy_2 + \
+                                splat_alpha_rig_2 * splat_rgb_rig_2 ) * ratio
 
             alpha_1_final = (1.0 - (1. - splat_alpha_dy_1) * (1. - splat_alpha_rig_1) ) * (1. - ratio)
             alpha_2_fianl = (1.0 - (1. - splat_alpha_dy_2) * (1. - splat_alpha_rig_2) ) * ratio
