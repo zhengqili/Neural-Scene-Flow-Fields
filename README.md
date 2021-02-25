@@ -107,7 +107,7 @@ The code is based on implementation of several prior work:
 * https://github.com/NVIDIA/flownet2-pytorch
 
 ## License
-This repository is released under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
+This repository is released under the [MIT license](hhttps://opensource.org/licenses/MIT).
 
 If you find our code/models useful, please consider citing our paper:
 ```bash
