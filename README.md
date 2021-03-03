@@ -109,13 +109,14 @@ The code is based on implementation of several prior work:
 ## License
 This repository is released under the [MIT license](hhttps://opensource.org/licenses/MIT).
 
+## Citation
 If you find our code/models useful, please consider citing our paper:
 ```bash
-@article{Li20arxiv_nsff,
+@article{Li21_nsff,
 	Archiveprefix = {arXiv},
 	Author = {Zhengqi Li and Simon Niklaus and Noah Snavely and Oliver Wang},
-	Journal = {https://arxiv.org/abs/2011.13084},
 	Title = {Neural Scene Flow Fields for Space-Time View Synthesis of Dynamic Scenes},
-	Year = {2020}
+  	booktitle={CVPR},
+  	year={2021}
 }
 
