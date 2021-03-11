@@ -34,6 +34,9 @@ def load_colmap_data(realdir):
     bounds_mats = []
 
     upper_bound = 100
+    
+    if upper_bound < len(img_keys):
+        print("Only keeping " + str(upper_bound) + " images!")
 
     for i in perm[0:min(upper_bound, len(img_keys))]:
         im = imdata[img_keys[i]]

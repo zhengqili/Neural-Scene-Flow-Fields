@@ -134,7 +134,7 @@ def run(basedir, input_path, output_path, model_path,
     print("device: %s" % device)
     # sys.exit()
 
-    small_img_dir = input_path + '_*x288/'
+    small_img_dir = input_path + '_*x' + str(resize_height) + '/'
     print(small_img_dir)
 
     small_img_path = sorted(glob.glob(glob.glob(small_img_dir)[0] + '/*.png'))[0]

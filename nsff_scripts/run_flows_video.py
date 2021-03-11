@@ -404,7 +404,7 @@ if __name__ == '__main__':
                         help='use mixed precision')
     parser.add_argument("--data_path", type=str, 
                         help='COLMAP Directory')
-    parser.add_argument("--epi_threhold", type=float, 
+    parser.add_argument("--epi_threshold", type=float, 
                         default=1.0,
                         help='epipolar distance threshold for physical motion segmentation')
 
