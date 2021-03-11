@@ -29,7 +29,7 @@ The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependenci
     python run_midas.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/" --input_w 640 --input_h 360 --resize_height 288
     # Run optical flow model (for easy setup and Pytorch version consistency, we use RAFT as backbond optical flow model, but should be easy to change to other models such as PWC-Net or FlowNet2.0)
     ./download_models.sh
-    python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/ --epi_threhold 1.0 --input_flow_w 768 --input_semantic_w 1024 --input_semantic_h 576
+    python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/ --epi_threshold 1.0 --input_flow_w 768 --input_semantic_w 1024 --input_semantic_h 576
 ```
 
 ## Rendering from an example pretrained model
