@@ -425,6 +425,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     run_optical_flows(args)
-    motion_segmentation(args.data_path, args.epi_threhold,
+    motion_segmentation(args.data_path, args.epi_threshold,
                         args.input_semantic_w, 
                         args.input_semantic_h)
