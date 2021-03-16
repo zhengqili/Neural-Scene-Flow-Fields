@@ -3,6 +3,8 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 
 [[Project Website]](https://www.cs.cornell.edu/~zl548/NSFF/) [[Paper]](https://arxiv.org/abs/2011.13084) [[Video]](https://www.youtube.com/watch?v=qsMIH7gYRCc&feature=emb_title)
 
+* The released implementation is slightly different from current ArXiv. We will update ArXiv to CVPR camera ready version by the end of March.
+
 ## Dependency
 The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependencies includes 
 * configargparse
@@ -77,7 +79,7 @@ The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 * decay_iteration: number of iteartion in initialization stage. Data-driven losses will decay every 1000*decay_iteration steps. It's usually good to match decay_iteration to the number of training frames. 
 * no_ndc: our current implementation only supports reconstruction in NDC space, meaning it only works for forward-facing scene like original NeRF. But it should be not hard to adapt to euclidean space.
 * use_motion_mask, num_extra_sample: whether to use estimated coarse motion segmentation mask to perform hard-mining sampling during initialization stage, and how many extra samples during initialization stage.
-* w_depth, w_optical_flow: weight of losses for single-view depth and geometry consistency priors described in the paper
+* w_depth, w_optical_flow: weight of losses for single-view depth and geometry consistency priors described in the paper. Weights of (0.4, 0.2) or (0.2, 0.1) usually work for most of the videos. 
 * w_cycle: weights of scene flow cycle consistency loss
 * w_sm: weight of scene flow smoothness loss
 * w_prob_reg: weight of disocculusion weight regularization
