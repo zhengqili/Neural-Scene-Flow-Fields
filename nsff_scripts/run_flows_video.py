@@ -218,17 +218,22 @@ def motion_segmentation(basedir, threshold,
     os.system('rm -r %s'%mask_dir)
     os.system('rm -r %s'%semantic_dir)
 
-def load_image(imfile, input_flow_w):
+def load_image(imfile, input_flow_w, h=None):
     img = np.array(Image.open(imfile)).astype(np.uint8)
-    img = cv2.resize(img, (input_flow_w, int(round(float(img.shape[0])/ float(img.shape[1]) * input_flow_w))), cv2.INTER_LINEAR)
+    if h is None:
+        img = cv2.resize(img, (input_flow_w, int(round(float(img.shape[0])/ float(img.shape[1]) * input_flow_w))), cv2.INTER_LINEAR)
+    else:
+        img = cv2.resize(img, (input_flow_w, h), cv2.INTER_LINEAR)
     img = torch.from_numpy(img).permute(2, 0, 1).float()
     return img
 
 
 def load_image_list(image_files, input_flow_w):
     images = []
+    img = load_image(image_files[0], input_flow_w)
+    c, h, w = img.shape
     for imfile in sorted(image_files):
-        images.append(load_image(imfile, input_flow_w))
+        images.append(load_image(imfile, input_flow_w, h))
 
     images = torch.stack(images, dim=0)
     images = images.to(DEVICE)
