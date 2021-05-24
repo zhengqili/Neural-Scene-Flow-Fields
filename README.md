@@ -113,9 +113,9 @@ This repository is released under the [MIT license](hhttps://opensource.org/lice
 ## Citation
 If you find our code/models useful, please consider citing our paper:
 ```bash
-@article{li2020neural,
+@InProceedings{li2020neural,
   title={Neural Scene Flow Fields for Space-Time View Synthesis of Dynamic Scenes},
   author={Li, Zhengqi and Niklaus, Simon and Snavely, Noah and Wang, Oliver},
-  journal={arXiv preprint arXiv:2011.13084},
-  year={2020}
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year={2021}
 }
