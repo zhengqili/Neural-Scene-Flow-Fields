@@ -74,7 +74,7 @@ The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 
 2. Several parameters in config files you might need to know for training a good model
 * N_samples: in order to render images with higher resolution, you have to increase number sampled points
-* start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth (but it can drastically increase training time and memory usage).
+* start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s and 30 frames work the best for default hyperparameters. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth (but it can drastically increase training time and memory usage).
 * decay_iteration: number of iteartion in initialization stage. Data-driven losses will decay every 1000*decay_iteration steps. It's usually good to match decay_iteration to the number of training frames. 
 * no_ndc: our current implementation only supports reconstruction in NDC space, meaning it only works for forward-facing scene like original NeRF. But it should be not hard to adapt to euclidean space.
 * use_motion_mask, num_extra_sample: whether to use estimated coarse motion segmentation mask to perform hard-mining sampling during initialization stage, and how many extra samples during initialization stage.
@@ -82,6 +82,7 @@ The per-scene training takes ~2 days using 2 Nvidia V100 GPUs.
 * w_cycle: weights of scene flow cycle consistency loss
 * w_sm: weight of scene flow smoothness loss
 * w_prob_reg: weight of disocculusion weight regularization
+* If you see signifacnt ghosting result in the final rendering, you might try the suggestion from [link](https://github.com/zhengqili/Neural-Scene-Flow-Fields/issues/18)
 
 ## Evaluation on the Dynamic Scene Dataset
 1. Download Dynamic Scene dataset "dynamic_scene_data_full.zip" from [link](https://drive.google.com/drive/folders/1G-NFZKEA8KSWojUKecpJPVoq5XCjBLOV?usp=sharing)
