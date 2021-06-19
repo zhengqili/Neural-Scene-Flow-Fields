@@ -3,8 +3,6 @@ PyTorch implementation of paper "Neural Scene Flow Fields for Space-Time View Sy
 
 [[Project Website]](https://www.cs.cornell.edu/~zl548/NSFF/) [[Paper]](https://arxiv.org/abs/2011.13084) [[Video]](https://www.youtube.com/watch?v=qsMIH7gYRCc&feature=emb_title)
 
-[[Re-implementation with imrpovement of NSFF]](https://github.com/kwea123/nsff_pl)
-
 ## Dependency
 The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependencies includes 
 * configargparse
