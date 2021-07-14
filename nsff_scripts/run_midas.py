@@ -17,8 +17,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# RESIZE_W_1, RESIZE_H_1 = 640, 360
-VIZ = False
+VIZ = True
 
 def read_image(path):
     """Read image and output RGB image (0-1).
@@ -93,7 +92,6 @@ def _minify(basedir, factors=[], resolutions=[]):
             img = cv2.imread(img_path)
 
             print(img.shape, r)
-            # sys.exit()
 
             cv2.imwrite(save_path, 
                         cv2.resize(img, 
@@ -109,8 +107,11 @@ def _minify(basedir, factors=[], resolutions=[]):
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
 import imageio
 
-def run(basedir, input_path, output_path, model_path, 
-        input_w=640, input_h=360, resize_height=288):
+def run(basedir, 
+        input_path, 
+        output_path, 
+        model_path, 
+        resize_height=288):
     """Run MonoDepthNN to compute depth maps.
 
     Args:
@@ -132,7 +133,6 @@ def run(basedir, input_path, output_path, model_path,
     # select device
     device = torch.device("cuda")
     print("device: %s" % device)
-    # sys.exit()
 
     small_img_dir = input_path + '_*x' + str(resize_height) + '/'
     print(small_img_dir)
@@ -141,9 +141,22 @@ def run(basedir, input_path, output_path, model_path,
 
     small_img = cv2.imread(small_img_path)
 
+    print('small_img', small_img.shape)
+
+    # Portrait Orientation
+    if small_img.shape[0] > small_img.shape[1]:
+        input_h = 640
+        input_w = int(round( float(input_h) / small_img.shape[0] * small_img.shape[1]))
+    # Landscape Orientation
+    else:
+        input_w = 640 
+        input_h = int(round( float(input_w) / small_img.shape[1] * small_img.shape[0]))
+
+    print('Monocular depth input_w %d input_h %d '%(input_w, input_h))
+    
     # load network
     model = MidasNet(model_path, non_negative=True)
-
+    
     transform_1 = Compose(
         [
             Resize(
@@ -156,7 +169,7 @@ def run(basedir, input_path, output_path, model_path,
                 image_interpolation_method=cv2.INTER_AREA,
             ),
             NormalizeImage(mean=[0.485, 0.456, 0.406], 
-                        std=[0.229, 0.224, 0.225]),
+                           std=[0.229, 0.224, 0.225]),
             PrepareForNet(),
         ]
     )
@@ -226,10 +239,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str, 
                         help='COLMAP Directory')
-    parser.add_argument("--input_w", type=int, default=640,
-                        help='input image width for monocular depth network')
-    parser.add_argument("--input_h", type=int, default=360,
-                        help='input image height for monocular depth network')
+    # parser.add_argument("--input_w", type=int, default=640,
+                        # help='input image width for monocular depth network')
+    # parser.add_argument("--input_h", type=int, default=360,
+                        # help='input image height for monocular depth network')
     parser.add_argument("--resize_height", type=int, default=288,
                         help='resized image height for training \
                         (width will be resized based on original aspect ratio)')
@@ -249,7 +262,8 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
 
     # compute depth maps
-    run(BASE_DIR, INPUT_PATH, OUTPUT_PATH, MODEL_PATH, 
-        args.input_w, args.input_h, args.resize_height)
+    run(BASE_DIR, INPUT_PATH, 
+        OUTPUT_PATH, MODEL_PATH, 
+        args.resize_height)
 
 
