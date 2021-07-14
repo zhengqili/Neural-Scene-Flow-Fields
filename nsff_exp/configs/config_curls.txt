@@ -1,7 +1,8 @@
-expname = Skating2_ndc_5f_sv_of_unify3
-basedir = ./logs
+expname = curls_ndc_5f_unify
 
-datadir = //home/zl548/nvidia_data_full/Skating-2/dense/
+basedir = ./logs
+datadir = /phoenix/S7/zl548/nerfie/curls/dense
+
 dataset_type = llff
 
 factor = 2
@@ -22,8 +23,8 @@ decay_depth_w = True
 decay_optical_flow_w = True
 use_motion_mask = True
 num_extra_sample = 512
-decay_iteration = 25
-chain_sf = True
+
+lrate_decay = 500
 
 w_depth = 0.04
 w_optical_flow = 0.02
@@ -31,6 +32,12 @@ w_sm = 0.1
 w_sf_reg = 0.1
 w_cycle = 1.0
 w_prob_reg = 0.1
+w_entropy = 1e-3
 
 start_frame = 0
-end_frame = 24
+end_frame = 56
+decay_iteration = 60
+
+final_height = 480
+chain_sf = True
+

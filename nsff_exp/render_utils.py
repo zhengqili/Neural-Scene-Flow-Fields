@@ -7,8 +7,6 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
 from run_nerf_helpers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -822,14 +820,15 @@ def raw2outputs_blending(raw_dy,
     depth_map = torch.sum(weights_mix * z_vals, -1)
 
     # compute dynamic depth only
-    alpha_dynamic = 1. - torch.exp(-opacity_dy * dists)
-    weights_dynamic = alpha_dynamic * torch.cumprod(torch.cat([torch.ones((alpha_dynamic.shape[0], 1)), 
-                                                                        1.-alpha_dynamic + 1e-10], -1), -1)[:, :-1]
-    depth_map_dynamic = torch.sum(weights_dynamic * z_vals, -1)
-    rgb_map_dy = torch.sum(weights_dynamic[..., None] * torch.sigmoid(raw_dy[..., :3]), -2) 
+    alpha_fg = 1. - torch.exp(-opacity_dy * dists)
+    weights_fg = alpha_fg * torch.cumprod(torch.cat([torch.ones((alpha_fg.shape[0], 1)), 
+                                                                1.-alpha_fg + 1e-10], -1), -1)[:, :-1]
+    depth_map_fg = torch.sum(weights_fg * z_vals, -1)
+    rgb_map_fg = torch.sum(weights_fg[..., None] * rgb_dy, -2) 
 
     return rgb_map, depth_map, \
-           rgb_map_dy, depth_map_dynamic, weights_dynamic
+           rgb_map_fg, depth_map_fg, weights_fg, \
+           weights_dy
 
 
 def raw2outputs_warp(raw_p, 
@@ -1016,20 +1015,19 @@ def render_rays(img_idx,
     # raw_blend_w_ref = raw_ref[:, :, 12]
 
     rgb_map_ref, depth_map_ref, \
-    rgb_map_ref_dy, depth_map_ref_dy, weights_ref_dy = raw2outputs_blending(raw_rgba_ref, raw_rgba_rigid,
-                                                                            raw_blend_w,
-                                                                            z_vals, rays_d, 
-                                                                            raw_noise_std)
+    rgb_map_ref_dy, depth_map_ref_dy, weights_ref_dy, \
+    weights_ref_dd = raw2outputs_blending(raw_rgba_ref, raw_rgba_rigid,
+                                          raw_blend_w,
+                                          z_vals, rays_d, 
+                                          raw_noise_std)
 
+    weights_map_dd = torch.sum(weights_ref_dd, -1).detach()
 
     ret = {'rgb_map_ref': rgb_map_ref, 'depth_map_ref' : depth_map_ref,  
             'rgb_map_rig':rgb_map_rig, 'depth_map_rig':depth_map_rig, 
-            'rgb_map_ref_dy':rgb_map_ref_dy, 'weights_ref_dy':weights_ref_dy, 
-            'depth_map_ref_dy':depth_map_ref_dy}
-
-    # ret['raw_pts_ref'] = pts_ref[:, :, :3]
-    # ret['raw_sf_ref2prev'] = raw_sf_ref2prev
-    # ret['raw_sf_ref2post'] = raw_sf_ref2post
+            'rgb_map_ref_dy':rgb_map_ref_dy, 
+            'depth_map_ref_dy':depth_map_ref_dy, 
+            'weights_map_dd': weights_map_dd}
 
     if inference:
         return ret
@@ -1037,6 +1035,8 @@ def render_rays(img_idx,
         ret['raw_sf_ref2prev'] = raw_sf_ref2prev
         ret['raw_sf_ref2post'] = raw_sf_ref2post
         ret['raw_pts_ref'] = pts_ref[:, :, :3]
+        ret['weights_ref_dy'] = weights_ref_dy
+        ret['raw_blend_w'] = raw_blend_w
 
     img_idx_rep_post = torch.ones_like(pts[:, :, 0:1]) * (img_idx + 1./num_img * 2. )
     pts_post = torch.cat([(pts_ref[:, :, :3] + raw_sf_ref2post), img_idx_rep_post] , -1)
@@ -1049,7 +1049,6 @@ def render_rays(img_idx,
     raw_rgba_prev = raw_prev[:, :, :4]
     raw_sf_prev2prevprev = raw_prev[:, :, 4:7]
     raw_sf_prev2ref = raw_prev[:, :, 7:10]
-    # raw_blend_w_prev = raw_prev[:, :, 12]
 
     # render from t - 1
     rgb_map_prev_dy, _, weights_prev_dy = raw2outputs_warp(raw_rgba_prev,
@@ -1057,8 +1056,6 @@ def render_rays(img_idx,
                                                            raw_noise_std)
 
 
-    # ret['rgb_map_prev'] = rgb_map_prev
-    # ret['depth_map_prev'] = depth_map_prev
     ret['raw_sf_prev2ref'] = raw_sf_prev2ref
     ret['rgb_map_prev_dy'] = rgb_map_prev_dy
     
@@ -1067,14 +1064,11 @@ def render_rays(img_idx,
     raw_rgba_post = raw_post[:, :, :4]
     raw_sf_post2ref = raw_post[:, :, 4:7]
     raw_sf_post2postpost = raw_post[:, :, 7:10]
-    # raw_blend_w_post = raw_post[:, :, 12]
 
     rgb_map_post_dy, _, weights_post_dy = raw2outputs_warp(raw_rgba_post,
                                                            z_vals, rays_d, 
                                                            raw_noise_std)
 
-    # ret['rgb_map_post'] = rgb_map_post
-    # ret['depth_map_post'] = depth_map_post
     ret['raw_sf_post2ref'] = raw_sf_post2ref
     ret['rgb_map_post_dy'] = rgb_map_post_dy
 
@@ -1092,9 +1086,12 @@ def render_rays(img_idx,
     ret['raw_prob_ref2prev'] = raw_prob_ref2prev
     ret['raw_prob_ref2post'] = raw_prob_ref2post
 
+    ret['raw_pts_post'] = pts_post[:, :, :3]
+    ret['raw_pts_prev'] = pts_prev[:, :, :3]
 
+    # # ======================================  two-frames chain loss ===============================
     if chain_bwd:
-        # render points at t - 2
+        # render point frames at t - 2
         img_idx_rep_prevprev = torch.ones_like(pts[:, :, 0:1]) * (img_idx - 2./num_img * 2. )    
         pts_prevprev = torch.cat([(pts_prev[:, :, :3] + raw_sf_prev2prevprev), img_idx_rep_prevprev] , -1)
         ret['raw_pts_pp'] = pts_prevprev[:, :, :3]
@@ -1102,27 +1099,14 @@ def render_rays(img_idx,
         if chain_5frames:
             raw_prevprev = network_query_fn(pts_prevprev, viewdirs, network_fn)
             raw_rgba_prevprev = raw_prevprev[:, :, :4]
-            raw_sf_prevprev2prev = raw_prevprev[:, :, 7:10]
-            # raw_blend_w_prevprev = raw_prevprev[:, :, 12]
 
             # render from t - 2
             rgb_map_prevprev_dy, _, weights_prevprev_dy = raw2outputs_warp(raw_rgba_prevprev, 
                                                                            z_vals, rays_d, 
                                                                            raw_noise_std)
 
-            raw_prob_prev2prevprev = raw_prev[:, :, 10]
-            raw_prob_ref2prevprev = 1.0 - (1. - raw_prob_ref2prev) * (1. - raw_prob_prev2prevprev)
-
-            ret['prob_map_pp'] = compute_2d_prob(weights_prevprev_dy, 
-                                                 raw_prob_ref2prevprev)
-
-            # ret['rgb_map_pp'] = rgb_map_prevprev
             ret['rgb_map_pp_dy'] = rgb_map_prevprev_dy
 
-            ret['raw_sf_pp2p'] = raw_sf_prevprev2prev
-            ret['raw_sf_p2pp'] = raw_sf_prev2prevprev
-            ret['raw_prob_p2pp'] = raw_prob_prev2prevprev
-        
     else:
         # render points at t + 2
         img_idx_rep_postpost = torch.ones_like(pts[:, :, 0:1]) * (img_idx + 2./num_img * 2. )    
@@ -1132,31 +1116,14 @@ def render_rays(img_idx,
         if chain_5frames:
             raw_postpost = network_query_fn(pts_postpost, viewdirs, network_fn)
             raw_rgba_postpost = raw_postpost[:, :, :4]
-            raw_sf_postpost2post = raw_postpost[:, :, 4:7]
-            # raw_blend_w_postpost = raw_postpost[:, :, 12]
 
             # render from t + 2
             rgb_map_postpost_dy, _, weights_postpost_dy = raw2outputs_warp(raw_rgba_postpost, 
                                                                            z_vals, rays_d, 
                                                                            raw_noise_std)
 
-
-            raw_prob_post2postpost = raw_post[:, :, 11]
-            raw_prob_ref2postpost = 1.0 - (1. - raw_prob_ref2post) * (1. - raw_prob_post2postpost)
-
-            ret['prob_map_pp'] = compute_2d_prob(weights_postpost_dy, 
-                                                 raw_prob_ref2postpost)
-
-            # ret['rgb_map_pp'] = rgb_map_postpost
             ret['rgb_map_pp_dy'] = rgb_map_postpost_dy
 
-            ret['raw_sf_pp2p'] = raw_sf_postpost2post
-            ret['raw_sf_p2pp'] = raw_sf_post2postpost
-            ret['raw_prob_p2pp'] = raw_prob_post2postpost
-
-    ret['raw_pts_ref'] = pts_ref[:, :, :3]
-    ret['raw_pts_post'] = pts_post[:, :, :3]
-    ret['raw_pts_prev'] = pts_prev[:, :, :3]
 
     for k in ret:
         if (torch.isnan(ret[k]).any() or torch.isinf(ret[k]).any()) and DEBUG:

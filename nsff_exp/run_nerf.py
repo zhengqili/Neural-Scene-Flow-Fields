@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 import cv2
+from kornia import create_meshgrid
 
 from render_utils import *
 from run_nerf_helpers import *
@@ -50,7 +51,7 @@ def config_parser():
                         help='batch size (number of random rays per gradient step)')
     parser.add_argument("--lrate", type=float, default=5e-4, 
                         help='learning rate')
-    parser.add_argument("--lrate_decay", type=int, default=250, 
+    parser.add_argument("--lrate_decay", type=int, default=300, 
                         help='exponential learning rate decay (in 1000 steps)')
     parser.add_argument("--chunk", type=int, default=1024*128, 
                         help='number of rays processed in parallel, decrease if running out of memory')
@@ -127,22 +128,30 @@ def config_parser():
                         help='weights of optical flow loss')
     parser.add_argument("--w_sm", type=float, default=0.1, 
                         help='weights of scene flow smoothness')
-    parser.add_argument("--w_sf_reg", type=float, default=0.01, 
+    parser.add_argument("--w_sf_reg", type=float, default=0.1, 
                         help='weights of scene flow regularization')
     parser.add_argument("--w_cycle", type=float, default=0.1, 
                         help='weights of cycle consistency')
     parser.add_argument("--w_prob_reg", type=float, default=0.1, 
                         help='weights of disocculusion weights')
+
+    parser.add_argument("--w_entropy", type=float, default=1e-3, 
+                        help='w_entropy regularization weight')
+
     parser.add_argument("--decay_iteration", type=int, default=50, 
-                        help='data driven priors decay iteration * 10000')
+                        help='data driven priors decay iteration * 1000')
+
+    parser.add_argument("--chain_sf", action='store_true', 
+                        help='5 frame consistency if true, \
+                             otherwise 3 frame consistency')
 
     parser.add_argument("--start_frame", type=int, default=0)
-    parser.add_argument("--end_frame", type=int, default=30)
+    parser.add_argument("--end_frame", type=int, default=50)
 
     # logging/saving options
-    parser.add_argument("--i_print",   type=int, default=500, 
+    parser.add_argument("--i_print",   type=int, default=1000, 
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img",     type=int, default=500, 
+    parser.add_argument("--i_img",     type=int, default=1000, 
                         help='frequency of tensorboard image logging')
     parser.add_argument("--i_weights", type=int, default=10000, 
                         help='frequency of weight ckpt saving')
@@ -177,7 +186,7 @@ def train():
 
         print('DEFINING BOUNDS')
         if args.no_ndc:
-            near = np.percentile(bds[:, 0], 5) * 0.9 #np.ndarray.min(bds) #* .9
+            near = np.percentile(bds[:, 0], 5) * 0.8 #np.ndarray.min(bds) #* .9
             far = np.percentile(bds[:, 1], 95) * 1.1 #np.ndarray.max(bds) #* 1.
         else:
             near = 0.
@@ -300,17 +309,20 @@ def train():
 
     poses = torch.Tensor(poses).to(device)
 
-    N_iters = 500 * 1000 #1000000
+    N_iters = 2000 * 1000 #1000000
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
     print('VAL views are', i_val)
+    uv_grid = create_meshgrid(H, W, normalized_coordinates=False)[0].cuda() # (H, W, 2)
 
     # Summary writers
     writer = SummaryWriter(os.path.join(basedir, 'summaries', expname))
     num_img = float(images.shape[0])
     
-    decay_iteration = args.decay_iteration
+    decay_iteration = max(args.decay_iteration, 
+                          args.end_frame - args.start_frame)
+    decay_iteration = min(decay_iteration, 250)
 
     chain_bwd = 0
 
@@ -318,7 +330,7 @@ def train():
         chain_bwd = 1 - chain_bwd
         time0 = time.time()
         print('expname ', expname, ' chain_bwd ', chain_bwd, 
-            ' lindisp ', args.lindisp, ' decay_iteration ', decay_iteration)
+             ' lindisp ', args.lindisp, ' decay_iteration ', decay_iteration)
         print('Random FROM SINGLE IMAGE')
         # Random from one image
         img_i = np.random.choice(i_train)
@@ -394,6 +406,9 @@ def train():
     
         flow_bwd = torch.Tensor(flow_bwd).cuda()
         bwd_mask = torch.Tensor(bwd_mask).cuda()
+        # more correct way for flow loss
+        flow_fwd = flow_fwd + uv_grid
+        flow_bwd = flow_bwd + uv_grid
 
         if N_rand is not None:
             rays_o, rays_d = get_rays(H, W, focal, torch.Tensor(pose))  # (H, W, 3), (H, W, 3)
@@ -449,17 +464,19 @@ def train():
         img_idx_embed = img_i/num_img * 2. - 1.0
 
         #####  Core optimization loop  #####
-        if i < decay_iteration * 1000:
-            chain_5frames = False
-        else:
+        if args.chain_sf and i > decay_iteration * 1000 * 2:
             chain_5frames = True
+        else:
+            chain_5frames = False
 
-        print('chain_5frames ', chain_5frames)
-        # print('use_rgb_w ', args.use_rgb_w, ' w_prob_reg', args.w_prob_reg)
+        print('chain_5frames ', chain_5frames, ' chain_bwd ', chain_bwd)
 
-        ret = render(img_idx_embed, chain_bwd, chain_5frames,
+        ret = render(img_idx_embed, 
+                     chain_bwd, 
+                     chain_5frames,
                      num_img, H, W, focal, 
-                     chunk=args.chunk, rays=batch_rays,
+                     chunk=args.chunk, 
+                     rays=batch_rays,
                      verbose=i < 10, retraw=True,
                      **render_kwargs_train)
 
@@ -482,28 +499,47 @@ def train():
                                 + torch.mean(torch.abs(ret['raw_prob_ref2post'])))
 
         # dynamic rendering loss
-        render_loss = img2mse(ret['rgb_map_ref_dy'], target_rgb)
-        render_loss += compute_mse(ret['rgb_map_post_dy'], 
-                                   target_rgb, 
-                                   weight_map_post.unsqueeze(-1))
-        render_loss += compute_mse(ret['rgb_map_prev_dy'], 
-                                   target_rgb, 
-                                   weight_map_prev.unsqueeze(-1))
+        if i <= decay_iteration * 1000:
+            # dynamic rendering loss
+            render_loss = img2mse(ret['rgb_map_ref_dy'], target_rgb)
+            render_loss += compute_mse(ret['rgb_map_post_dy'], 
+                                       target_rgb, 
+                                       weight_map_post.unsqueeze(-1))
+            render_loss += compute_mse(ret['rgb_map_prev_dy'], 
+                                       target_rgb, 
+                                       weight_map_prev.unsqueeze(-1))
+        else:
+            print('only compute dynamic render loss in masked region')
+            weights_map_dd = ret['weights_map_dd'].unsqueeze(-1).detach()
+
+            # dynamic rendering loss
+            render_loss = compute_mse(ret['rgb_map_ref_dy'], 
+                                      target_rgb, 
+                                      weights_map_dd)
+            render_loss += compute_mse(ret['rgb_map_post_dy'], 
+                                       target_rgb, 
+                                       weight_map_post.unsqueeze(-1) * weights_map_dd)
+            render_loss += compute_mse(ret['rgb_map_prev_dy'], 
+                                       target_rgb, 
+                                       weight_map_prev.unsqueeze(-1) * weights_map_dd)
 
         # union rendering loss
         render_loss += img2mse(ret['rgb_map_ref'][:N_rand, ...], 
-                            target_rgb[:N_rand, ...])
+                               target_rgb[:N_rand, ...])
 
         sf_cycle_loss = args.w_cycle * compute_mae(ret['raw_sf_ref2post'], 
-                                                -ret['raw_sf_post2ref'], 
-                                                weight_post.unsqueeze(-1), dim=3) 
+                                                   -ret['raw_sf_post2ref'], 
+                                                   weight_post.unsqueeze(-1), dim=3) 
         sf_cycle_loss += args.w_cycle * compute_mae(ret['raw_sf_ref2prev'], 
-                                                -ret['raw_sf_prev2ref'], 
-                                                weight_prev.unsqueeze(-1), dim=3)
+                                                    -ret['raw_sf_prev2ref'], 
+                                                    weight_prev.unsqueeze(-1), dim=3)
         
         # regularization loss
-        sf_reg_loss = args.w_sf_reg * (torch.mean(torch.abs(ret['raw_sf_ref2prev'])) \
-                                    + torch.mean(torch.abs(ret['raw_sf_ref2post']))) 
+        render_sf_ref2prev = torch.sum(ret['weights_ref_dy'].unsqueeze(-1) * ret['raw_sf_ref2prev'], -1)
+        render_sf_ref2post = torch.sum(ret['weights_ref_dy'].unsqueeze(-1) * ret['raw_sf_ref2post'], -1)
+
+        sf_reg_loss = args.w_sf_reg * (torch.mean(torch.abs(render_sf_ref2prev)) \
+                                    + torch.mean(torch.abs(render_sf_ref2post))) 
 
         divsor = i // (decay_iteration * 1000)
 
@@ -558,51 +594,41 @@ def train():
                                                     ret['raw_pts_post'], 
                                                     ret['raw_pts_prev'], 
                                                     H, W, focal)
+        entropy_loss = args.w_entropy * torch.mean(-ret['raw_blend_w'] * torch.log(ret['raw_blend_w'] + 1e-8))
 
-        # ======================================  two-frames chain loss
+        # # ======================================  two-frames chain loss ===============================
         if chain_bwd:
-            sf_sm_loss += args.w_sm * compute_sf_sm_loss(ret['raw_pts_prev'], 
-                                                        ret['raw_pts_pp'], 
-                                                        H, W, focal)
             sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_prev'], 
                                                           ret['raw_pts_ref'], 
                                                           ret['raw_pts_pp'], 
                                                           H, W, focal)
 
         else:
-            sf_sm_loss += args.w_sm * compute_sf_sm_loss(ret['raw_pts_post'], 
-                                                        ret['raw_pts_pp'], 
-                                                        H, W, focal)
-
             sf_sm_loss += args.w_sm * compute_sf_lke_loss(ret['raw_pts_post'], 
                                                           ret['raw_pts_pp'], 
                                                           ret['raw_pts_ref'], 
                                                           H, W, focal)
 
         if chain_5frames:
-
-            weight_map_pp = ret['prob_map_pp']
-            raw_weight_p2pp = (1. - ret['raw_prob_p2pp'])
-            prob_reg_loss += args.w_prob_reg * torch.mean(torch.abs(ret['raw_prob_p2pp']))
-
+            print('5 FRAME RENDER LOSS ADDED') 
             render_loss += compute_mse(ret['rgb_map_pp_dy'], 
                                        target_rgb, 
-                                       weight_map_pp.unsqueeze(-1))
+                                       weights_map_dd)
 
-            sf_reg_loss += args.w_sf_reg * torch.mean(torch.abs(ret['raw_sf_p2pp']))    
-            sf_cycle_loss += args.w_cycle * compute_mae(ret['raw_sf_pp2p'], 
-                                                        -ret['raw_sf_p2pp'], 
-                                                        raw_weight_p2pp.unsqueeze(-1), dim=3) 
 
-        loss = sf_reg_loss + sf_cycle_loss + render_loss + flow_loss + sf_sm_loss + prob_reg_loss + depth_loss 
+        loss = sf_reg_loss + sf_cycle_loss + \
+               render_loss + flow_loss + \
+               sf_sm_loss + prob_reg_loss + \
+               depth_loss + entropy_loss 
 
         print('render_loss ', render_loss.item(), 
-            ' bidirection_loss ', sf_cycle_loss.item(), 
-            ' sf_reg_loss ', sf_reg_loss.item())
+              ' bidirection_loss ', sf_cycle_loss.item(), 
+              ' sf_reg_loss ', sf_reg_loss.item())
         print('depth_loss ', depth_loss.item(), 
-            ' flow_loss ', flow_loss.item(), 
-            ' sf_sm_loss ', sf_sm_loss.item())
-        print('prob_reg_loss ', prob_reg_loss.item())
+              ' flow_loss ', flow_loss.item(), 
+              ' sf_sm_loss ', sf_sm_loss.item())
+        print('prob_reg_loss ', prob_reg_loss.item(),
+              ' entropy_loss ', entropy_loss.item())
         loss.backward()
         optimizer.step()
 
@@ -624,7 +650,6 @@ def train():
             path = os.path.join(basedir, expname, '{:06d}.tar'.format(i))
 
             if args.N_importance > 0:
-
                 torch.save({
                     'global_step': global_step,
                     'network_fn_state_dict': render_kwargs_train['network_fn'].state_dict(),
@@ -650,75 +675,87 @@ def train():
             writer.add_scalar("train/depth_loss", depth_loss.item(), i)
             writer.add_scalar("train/flow_loss", flow_loss.item(), i)
             writer.add_scalar("train/prob_reg_loss", prob_reg_loss.item(), i)
-            # writer.add_scalar("train/d_ct_loss", d_ct_loss.item(), i)
 
             writer.add_scalar("train/sf_reg_loss", sf_reg_loss.item(), i)
             writer.add_scalar("train/sf_cycle_loss", sf_cycle_loss.item(), i)
             writer.add_scalar("train/sf_sm_loss", sf_sm_loss.item(), i)
 
 
-        # """
-        if i%args.i_img == 0 and i > 0:
+        if i%args.i_img == 0:
             # img_i = np.random.choice(i_val)
             target = images[img_i]
             pose = poses[img_i, :3,:4]
             target_depth = depths[img_i] - torch.min(depths[img_i])
 
-            img_idx_embed = img_i/num_img * 2. - 1.0
+            # img_idx_embed = img_i/num_img * 2. - 1.0
 
-            if img_i == 0:
-                flow_fwd, fwd_mask = read_optical_flow(args.datadir, img_i, 
-                                                    args.start_frame, fwd=True)
-                flow_bwd, bwd_mask = np.zeros_like(flow_fwd), np.zeros_like(fwd_mask)
-            elif img_i == num_img - 1:
-                flow_bwd, bwd_mask = read_optical_flow(args.datadir, img_i, 
-                                                    args.start_frame, fwd=False)
-                flow_fwd, fwd_mask = np.zeros_like(flow_bwd), np.zeros_like(bwd_mask)
-            else:
-                flow_fwd, fwd_mask = read_optical_flow(args.datadir, 
-                                                    img_i, args.start_frame, 
-                                                    fwd=True)
-                flow_bwd, bwd_mask = read_optical_flow(args.datadir, 
-                                                    img_i, args.start_frame, 
-                                                    fwd=False)
+            # if img_i == 0:
+            #     flow_fwd, fwd_mask = read_optical_flow(args.datadir, img_i, 
+            #                                            args.start_frame, fwd=True)
+            #     flow_bwd, bwd_mask = np.zeros_like(flow_fwd), np.zeros_like(fwd_mask)
+            # elif img_i == num_img - 1:
+            #     flow_bwd, bwd_mask = read_optical_flow(args.datadir, img_i, 
+            #                                            args.start_frame, fwd=False)
+            #     flow_fwd, fwd_mask = np.zeros_like(flow_bwd), np.zeros_like(bwd_mask)
+            # else:
+            #     flow_fwd, fwd_mask = read_optical_flow(args.datadir, 
+            #                                            img_i, args.start_frame, 
+            #                                            fwd=True)
+            #     flow_bwd, bwd_mask = read_optical_flow(args.datadir, 
+            #                                            img_i, args.start_frame, 
+            #                                            fwd=False)
 
-            flow_fwd_rgb = torch.Tensor(flow_to_image(flow_fwd)/255.)#.cuda()
-            writer.add_image("val/gt_flow_fwd", 
-                            flow_fwd_rgb, global_step=i, dataformats='HWC')
-            flow_bwd_rgb = torch.Tensor(flow_to_image(flow_bwd)/255.)#.cuda()
-            writer.add_image("val/gt_flow_bwd", 
-                            flow_bwd_rgb, global_step=i, dataformats='HWC')
+            # flow_fwd_rgb = torch.Tensor(flow_to_image(flow_fwd)/255.)#.cuda()
+            # writer.add_image("val/gt_flow_fwd", 
+            #                 flow_fwd_rgb, global_step=i, dataformats='HWC')
+            # flow_bwd_rgb = torch.Tensor(flow_to_image(flow_bwd)/255.)#.cuda()
+            # writer.add_image("val/gt_flow_bwd", 
+            #                 flow_bwd_rgb, global_step=i, dataformats='HWC')
 
             with torch.no_grad():
-                ret = render(img_idx_embed, chain_bwd, False,
+                ret = render(img_idx_embed, 
+                             chain_bwd, False,
                              num_img, H, W, focal, 
-                             chunk=1024*16, c2w=pose,
-                             **render_kwargs_train)
+                             chunk=1024*16, 
+                             c2w=pose,
+                             **render_kwargs_test)
 
-                pose_post = poses[min(img_i + 1, int(num_img) - 1), :3,:4]
-                pose_prev = poses[max(img_i - 1, 0), :3,:4]
-                render_of_fwd, render_of_bwd = compute_optical_flow(pose_post, pose, pose_prev, 
-                                                                    H, W, focal, ret, n_dim=2)
+                # pose_post = poses[min(img_i + 1, int(num_img) - 1), :3,:4]
+                # pose_prev = poses[max(img_i - 1, 0), :3,:4]
+                # render_of_fwd, render_of_bwd = compute_optical_flow(pose_post, pose, pose_prev, 
+                #                                                     H, W, focal, ret, n_dim=2)
 
-                render_flow_fwd_rgb = torch.Tensor(flow_to_image(render_of_fwd.cpu().numpy())/255.)#.cuda()
-                render_flow_bwd_rgb = torch.Tensor(flow_to_image(render_of_bwd.cpu().numpy())/255.)#.cuda()
+                # render_flow_fwd_rgb = torch.Tensor(flow_to_image(render_of_fwd.cpu().numpy())/255.)#.cuda()
+                # render_flow_bwd_rgb = torch.Tensor(flow_to_image(render_of_bwd.cpu().numpy())/255.)#.cuda()
                 
                 writer.add_image("val/rgb_map_ref", torch.clamp(ret['rgb_map_ref'], 0., 1.), 
                                 global_step=i, dataformats='HWC')
                 writer.add_image("val/depth_map_ref", normalize_depth(ret['depth_map_ref']), 
                                 global_step=i, dataformats='HW')
-               
+
+                writer.add_image("val/rgb_map_rig", torch.clamp(ret['rgb_map_rig'], 0., 1.), 
+                                global_step=i, dataformats='HWC')
+                writer.add_image("val/depth_map_rig", normalize_depth(ret['depth_map_rig']), 
+                                global_step=i, dataformats='HW')
+
+                writer.add_image("val/rgb_map_ref_dy", torch.clamp(ret['rgb_map_ref_dy'], 0., 1.), 
+                                global_step=i, dataformats='HWC')
+                writer.add_image("val/depth_map_ref_dy", normalize_depth(ret['depth_map_ref_dy']), 
+                                global_step=i, dataformats='HW')
+
+                # writer.add_image("val/rgb_map_pp_dy", torch.clamp(ret['rgb_map_pp_dy'], 0., 1.), 
+                                # global_step=i, dataformats='HWC')
+
                 writer.add_image("val/gt_rgb", target, 
                                 global_step=i, dataformats='HWC')
                 writer.add_image("val/monocular_disp", 
                                 torch.clamp(target_depth /percentile(target_depth, 97), 0., 1.), 
                                 global_step=i, dataformats='HW')
 
-                writer.add_image("val/render_flow_fwd_rgb", render_flow_fwd_rgb, 
-                                global_step=i, dataformats='HWC')
-                writer.add_image("val/render_flow_bwd_rgb", render_flow_bwd_rgb, 
-                                global_step=i, dataformats='HWC')
-
+                writer.add_image("val/weights_map_dd", 
+                                 ret['weights_map_dd'], 
+                                 global_step=i, 
+                                 dataformats='HW')
 
             # torch.cuda.empty_cache()
 
@@ -727,5 +764,4 @@ def train():
 
 if __name__=='__main__':
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
     train()

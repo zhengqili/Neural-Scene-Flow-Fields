@@ -23,6 +23,7 @@ decay_optical_flow_w = True
 use_motion_mask = True
 num_extra_sample = 512
 decay_iteration = 25
+chain_sf = True
 
 w_depth = 0.04
 w_optical_flow = 0.02

@@ -1,7 +1,7 @@
-expname = kid-running_ndc_5f_sv_of_sm_unify3_testing
+expname = kid-running_ndc_5f_sv_of_sm_unify3
 
 basedir = ./logs
-datadir = /home/zl548/Neural-Scene-Flow-Fields/kid-running/dense
+datadir = /phoenix/S7/zl548/nerf_data/kid-running/dense
 
 dataset_type = llff
 
@@ -17,20 +17,21 @@ use_viewdirs = True
 raw_noise_std = 1e0
 no_ndc = False
 lindisp = False
+
 no_batching = True
 spherify = False
 decay_depth_w = True
 decay_optical_flow_w = True
 use_motion_mask = True
 num_extra_sample = 512
-decay_iteration = 30
+chain_sf = True
 
 w_depth = 0.04
 w_optical_flow = 0.02
 w_sm = 0.1
-w_sf_reg = 0.01
+w_sf_reg = 0.1
 w_cycle = 1.0
-w_prob_reg = 0.1
 
 start_frame = 0
 end_frame = 30
+decay_iteration = 30
