@@ -39,6 +39,7 @@ The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependenci
 Set datadir in config/config_kid-running.txt to the root directory of input video. Then go to directory "nsff_exp":
 ```bash
    cd nsff_exp
+   mkdir logs
 ```
 
 2. Rendering of fixed time, viewpoint interpolation
