@@ -251,11 +251,11 @@ def read_optical_flow(basedir, img_i_name, read_fwd):
       # fwd_mask = np.float32(fwd_mask)
 
       # bwd_flow = np.zeros_like(fwd_flow)
-      return fwd_flow
+      return fwd_flow, fwd_mask
     else:
       bwd_data = np.load(bwd_flow_path)#, (w, h))
       bwd_flow, bwd_mask = bwd_data['flow'], bwd_data['mask']
       # bwd_mask = np.float32(bwd_mask)
       # fwd_flow = np.zeros_like(bwd_flow)
-      return bwd_flow
+      return bwd_flow, bwd_mask
     # return fwd_flow, bwd_flow#, fwd_mask, bwd_mask

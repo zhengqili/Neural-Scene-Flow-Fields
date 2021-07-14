@@ -22,19 +22,25 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 DEVICE = 'cuda'
-# INPUT_W = 768 #, IMG_H = 1024, 576
-VIZ = False
+VIZ = True
 
-
-def run_maskrcnn(model, img_path, intWidth=1024, intHeight=576):
+def run_maskrcnn(model, img_path): #, intWidth=1024, intHeight=576):
     import PIL
-
-    # intHeight = 576
-    # intWidth = 1024
-
     threshold = 0.5
 
     o_image = PIL.Image.open(img_path)
+
+    width, height = o_image.size
+
+    if width > height:
+        intWidth = 960
+        intHeight = int(round( float(intWidth) / width * height))        
+    else:
+        intHeight = 960
+        intWidth = int(round( float(intHeight) / height * width))        
+
+    print('Semantic Seg Width %d Height %d'%(intWidth, intHeight))
+
     image = o_image.resize((intWidth, intHeight), PIL.Image.ANTIALIAS)
 
     image_tensor = torchvision.transforms.functional.to_tensor(image).cuda()
@@ -78,9 +84,7 @@ def run_maskrcnn(model, img_path, intWidth=1024, intHeight=576):
     return npyMask
 
 
-def motion_segmentation(basedir, threshold, 
-                        input_semantic_w=1024, 
-                        input_semantic_h=576):
+def motion_segmentation(basedir, threshold):
     import colmap_read_model as read_model
 
     points3dfile = os.path.join(basedir, 'sparse/points3D.bin')
@@ -128,20 +132,24 @@ def motion_segmentation(basedir, threshold,
         T_ref2post = np.dot(T_post_G, np.linalg.inv(T_ref_G))
         # load optical flow 
         if i == 0:
-          fwd_flow = read_optical_flow(basedir, 
+          fwd_flow, fwd_mask = read_optical_flow(basedir, 
                                        im_ref.name, 
                                        read_fwd=True)
           bwd_flow = np.zeros_like(fwd_flow)
+          bwd_mask = np.zeros_like(fwd_mask)
+
         elif i == num_frames - 1:
-          bwd_flow = read_optical_flow(basedir, 
+          bwd_flow, bwd_mask = read_optical_flow(basedir, 
                                        im_ref.name, 
                                        read_fwd=False)
           fwd_flow = np.zeros_like(bwd_flow)
+          fwd_mask = np.zeros_like(bwd_mask)
+
         else:
-          fwd_flow = read_optical_flow(basedir, 
+          fwd_flow, fwd_mask = read_optical_flow(basedir, 
                                        im_ref.name, 
                                        read_fwd=True)
-          bwd_flow = read_optical_flow(basedir, 
+          bwd_flow, bwd_mask = read_optical_flow(basedir, 
                                        im_ref.name, 
                                        read_fwd=False)
 
@@ -158,10 +166,13 @@ def motion_segmentation(basedir, threshold,
         p_prev_h = np.concatenate((p_prev_h, np.ones((p_prev_h.shape[0], 1))), axis=-1).T
 
         bwd_e_dist = compute_epipolar_distance(T_ref2prev, K, 
-                                               p_ref_h, p_prev_h)
+                                               p_ref_h, 
+                                               p_prev_h)
         bwd_e_dist = np.reshape(bwd_e_dist, (bwd_flow.shape[0], bwd_flow.shape[1]))
 
-        e_dist = np.maximum(bwd_e_dist, fwd_e_dist)
+        # e_dist = np.maximum(bwd_e_dist, fwd_e_dist)
+        # for non-video sequence
+        e_dist = np.maximum(bwd_e_dist * bwd_mask, fwd_e_dist * fwd_mask)
 
         motion_mask = skimage.morphology.binary_opening(e_dist > threshold, skimage.morphology.disk(1))
 
@@ -178,9 +189,8 @@ def motion_segmentation(basedir, threshold,
     for i in range(0, len(img_path_list)):
         img_path = img_path_list[i]
         img_name = img_path.split('/')[-1]
-        semantic_mask = run_maskrcnn(netMaskrcnn, img_path,
-                                     input_semantic_w, 
-                                     input_semantic_h)
+        semantic_mask = run_maskrcnn(netMaskrcnn, 
+                                     img_path)
         cv2.imwrite(os.path.join(semantic_mask_dir, 
                                 img_name.replace('.jpg', '.png')), 
                     semantic_mask)
@@ -218,17 +228,31 @@ def motion_segmentation(basedir, threshold,
     os.system('rm -r %s'%mask_dir)
     os.system('rm -r %s'%semantic_dir)
 
-def load_image(imfile, input_flow_w):
+
+def load_image(imfile):
+    long_dim = 768
+
     img = np.array(Image.open(imfile)).astype(np.uint8)
-    img = cv2.resize(img, (input_flow_w, int(round(float(img.shape[0])/ float(img.shape[1]) * input_flow_w))), cv2.INTER_LINEAR)
+
+    # Portrait Orientation
+    if img.shape[0] > img.shape[1]:
+        input_h = long_dim
+        input_w = int(round( float(input_h) / img.shape[0] * img.shape[1]))
+    # Landscape Orientation
+    else:
+        input_w = long_dim 
+        input_h = int(round( float(input_w) / img.shape[1] * img.shape[0]))
+
+    print('flow input w %d h %d'%(input_w, input_h))
+    img = cv2.resize(img, (input_w, input_h), cv2.INTER_LINEAR)
     img = torch.from_numpy(img).permute(2, 0, 1).float()
     return img
 
 
-def load_image_list(image_files, input_flow_w):
+def load_image_list(image_files):
     images = []
     for imfile in sorted(image_files):
-        images.append(load_image(imfile, input_flow_w))
+        images.append(load_image(imfile))
 
     images = torch.stack(images, dim=0)
     images = images.to(DEVICE)
@@ -323,7 +347,7 @@ def run_optical_flows(args):
         images = glob.glob(os.path.join(basedir, 'images/', '*.png')) + \
                  glob.glob(os.path.join(basedir, 'images/', '*.jpg'))
 
-        images = load_image_list(images, args.input_flow_w)
+        images = load_image_list(images)
         for i in range(images.shape[0]-1):
             print(i)
             image1 = images[i,None]
@@ -392,7 +416,6 @@ def run_optical_flows(args):
             np.savez(os.path.join(of_dir, '%05d_fwd.npz'%i), flow=fwd_flow, mask=fwd_mask)
             np.savez(os.path.join(of_dir, '%05d_bwd.npz'%(i + 1)), flow=bwd_flow, mask=bwd_mask)
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help="restore checkpoint")
@@ -407,24 +430,20 @@ if __name__ == '__main__':
     parser.add_argument("--epi_threshold", type=float, 
                         default=1.0,
                         help='epipolar distance threshold for physical motion segmentation')
+    # parser.add_argument("--input_flow_w", type=int, 
+                        # default=768,
+                        # help='input image width for optical flow, \
+                        # the height will be computed based on original aspect ratio ')
 
-    parser.add_argument("--input_flow_w", type=int, 
-                        default=768,
-                        help='input image width for optical flow, \
-                        the height will be computed based on original aspect ratio ')
+    # parser.add_argument("--input_semantic_w", type=int, 
+                        # default=1024,
+                        # help='input image width for semantic segmentation')
 
-    parser.add_argument("--input_semantic_w", type=int, 
-                        default=1024,
-                        help='input image width for semantic segmentation')
-
-    parser.add_argument("--input_semantic_h", type=int, 
-                        default=576,
-                        help='input image height for semantic segmentation')
-
+    # parser.add_argument("--input_semantic_h", type=int, 
+                        # default=576,
+                        # help='input image height for semantic segmentation')
 
     args = parser.parse_args()
 
     run_optical_flows(args)
-    motion_segmentation(args.data_path, args.epi_threshold,
-                        args.input_semantic_w, 
-                        args.input_semantic_h)
+    motion_segmentation(args.data_path, args.epi_threshold)
