@@ -25,8 +25,9 @@ The code is tested with Python3, Pytorch >= 1.6 and CUDA >= 10.2, the dependenci
     cd nsff_scripts
     # create camera intrinsics/extrinsic format for NSFF, same as original NeRF where it uses imgs2poses.py script from the LLFF code: https://github.com/Fyusion/LLFF/blob/master/imgs2poses.py
     python save_poses_nerf.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/"
-    # Resize input images and run single view model
-    python run_midas.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/" --input_w 640 --input_h 360 --resize_height 288
+    # Resize input images and run single view model, 
+    # argument resize_height: resized image height for model training, width will be resized based on original aspect ratio
+    python run_midas.py --data_path "/home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/" --resize_height 288
     # Run optical flow model (for easy setup and Pytorch version consistency, we use RAFT as backbond optical flow model, but should be easy to change to other models such as PWC-Net or FlowNet2.0)
     ./download_models.sh
     python run_flows_video.py --model models/raft-things.pth --data_path /home/xxx/Neural-Scene-Flow-Fields/kid-running/dense/ --epi_threshold 1.0 --input_flow_w 768 --input_semantic_w 1024 --input_semantic_h 576
