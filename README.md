@@ -78,7 +78,7 @@ The per-scene training takes ~2 days using 4 Nvidia GTX2080TI GPUs.
 * final_height: this must be same as --resize_height argument in run_midas.py, in kid-running case, it should be 288.
 * N_samples: in order to render images with higher resolution, you have to increase number sampled points such as 256 or 512
 * chain_sf: model will perform local 5 frame consistency if set True, and perform 3 frame consistency if set False. For faster training for random video, suggests setting to False.
-* start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s and 30~50 frames work the best for default hyperparameters. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth to 512.
+* start_frame,  end_frame: indicate training frame range. The default model usually works for video of 1~2s and 30-60 frames work the best for default hyperparameters. Training on longer frames can cause oversmooth rendering. To mitigate the effect, you can increase the capacity of the network by increasing netwidth to 512.
 * decay_iteration: number of iteartion in initialization stage. Data-driven losses will decay every 1000 * decay_iteration steps. We have updated code to automatically calculate number decay iterations.
 * no_ndc: our current implementation only supports reconstruction in NDC space, meaning it only works for forward-facing scene, same as original NeRF.
 * use_motion_mask, num_extra_sample: whether to use estimated coarse motion segmentation mask to perform hard-mining sampling during initialization stage, and how many extra samples during initialization stage.
